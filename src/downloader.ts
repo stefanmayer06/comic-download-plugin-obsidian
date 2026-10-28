@@ -1,6 +1,8 @@
-import { App, normalizePath, requestUrl, TFile } from "obsidian";
+import { App, normalizePath, TFile } from "obsidian";
+import { bodyPreview, fetchUrl, pageTitle, responseHeader } from "./http";
+import { log } from "./log";
 import type { ComicFile } from "./sources/types";
-import { sanitizeFileName } from "./util";
+import { formatBytes, sanitizeFileName } from "./util";
 
 /** Creates every missing folder along `path`. */
 async function ensureFolder(app: App, path: string): Promise<void> {
@@ -8,6 +10,7 @@ async function ensureFolder(app: App, path: string): Promise<void> {
 	for (const part of path.split("/")) {
 		current = current ? `${current}/${part}` : part;
 		if (!app.vault.getAbstractFileByPath(current)) {
+			log.info(`Creating folder ${current}`);
 			await app.vault.createFolder(current);
 		}
 	}
@@ -24,26 +27,45 @@ export function comicPath(folder: string, name: string, file: ComicFile): string
 export async function downloadComic(app: App, folder: string, name: string, file: ComicFile): Promise<TFile> {
 	const requestedPath = comicPath(folder, name, file);
 	const existing = app.vault.getAbstractFileByPath(requestedPath);
-	if (existing instanceof TFile) return existing;
+	if (existing instanceof TFile) {
+		log.info(`${existing.path} is already in the vault, so it isn't downloaded again`);
+		return existing;
+	}
 
-	const response = await requestUrl({ url: file.url });
-	const contentType = Object.entries(response.headers).find(([key]) => key.toLowerCase() === "content-type")?.[1] ?? "";
-	if (/text\/html/i.test(contentType)) throw new Error("The download link returned a web page instead of a comic");
+	log.info(`Downloading "${name}" as ${file.extension.toUpperCase()}${file.size ? ` (about ${formatBytes(file.size)})` : ""} to ${requestedPath}`);
+	const response = await fetchUrl(file.url);
+	const contentType = responseHeader(response.headers, "content-type");
+	if (/text\/html/i.test(contentType)) {
+		const title = pageTitle(response);
+		log.error("Got a web page instead of a comic:", bodyPreview(response));
+		throw new Error(`The download link returned a web page${title ? ` ("${title}")` : ""} instead of a comic`);
+	}
 	const data = response.arrayBuffer;
 	if (data.byteLength === 0) throw new Error("The download was empty");
 
 	// Some sources use opaque redirect URLs, so their stated extension is only
 	// a hint. Use the file signature to avoid saving a RAR archive as CBZ.
 	const detected = detectComicExtension(data);
-	if (!detected) throw new Error("The download was not a CBZ, CBR or PDF file");
+	if (!detected) {
+		log.error(`Unknown file type (${contentType || "no content type"}). It starts with: ${firstBytes(data)}`);
+		throw new Error("The download was not a CBZ, CBR or PDF file");
+	}
+	if (detected !== file.extension) {
+		log.info(`The file is a ${detected.toUpperCase()} rather than ${file.extension.toUpperCase()} as listed`);
+	}
 	const path = comicPath(folder, name, { ...file, extension: detected });
 	if (path !== requestedPath) {
 		const existingActual = app.vault.getAbstractFileByPath(path);
-		if (existingActual instanceof TFile) return existingActual;
+		if (existingActual instanceof TFile) {
+			log.info(`${existingActual.path} is already in the vault, so it isn't saved again`);
+			return existingActual;
+		}
 	}
 
 	await ensureFolder(app, normalizePath(folder));
-	return app.vault.createBinary(path, data);
+	const saved = await app.vault.createBinary(path, data);
+	log.info(`Saved ${formatBytes(data.byteLength)} to ${saved.path}`);
+	return saved;
 }
 
 export function detectComicExtension(data: ArrayBuffer): ComicFile["extension"] | null {
@@ -65,4 +87,12 @@ export function detectComicExtension(data: ArrayBuffer): ComicFile["extension"] 
 		}
 	}
 	return null;
+}
+
+/** The first bytes as hex and text, e.g. `52 61 72 21 1a 07 01 00 "Rar!...."`. */
+function firstBytes(data: ArrayBuffer): string {
+	const bytes = [...new Uint8Array(data, 0, Math.min(data.byteLength, 16))];
+	const hex = bytes.map((byte) => byte.toString(16).padStart(2, "0")).join(" ");
+	const text = bytes.map((byte) => (byte >= 0x20 && byte < 0x7f ? String.fromCharCode(byte) : ".")).join("");
+	return `${hex} "${text}"`;
 }

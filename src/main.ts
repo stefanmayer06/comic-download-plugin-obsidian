@@ -1,10 +1,12 @@
-import { Notice, Plugin, TFile } from "obsidian";
+import { apiVersion, normalizePath, Notice, Platform, Plugin, TFile } from "obsidian";
+import { log } from "./log";
 import { ComicReaderView, READER_EXTENSIONS, VIEW_TYPE_COMIC_READER } from "./reader/ComicReaderView";
 import { ComicDownloaderSettings, ComicDownloaderSettingTab, DEFAULT_SETTINGS } from "./settings";
 import { GetComicsSource } from "./sources/getComics";
 import { InternetArchiveSource } from "./sources/internetArchive";
 import type { ComicSource, ComicSummary } from "./sources/types";
 import { ComicBrowserModal } from "./ui/ComicBrowserModal";
+import { LogModal } from "./ui/LogModal";
 
 export default class ComicDownloaderPlugin extends Plugin {
 	settings!: ComicDownloaderSettings;
@@ -15,6 +17,9 @@ export default class ComicDownloaderPlugin extends Plugin {
 	}
 
 	async onload(): Promise<void> {
+		const pluginDir = this.manifest.dir ?? `${this.app.vault.configDir}/plugins/${this.manifest.id}`;
+		await log.open(this.app.vault.adapter, normalizePath(`${pluginDir}/debug.log`));
+		log.info(`Comic Downloader ${this.manifest.version} started on Obsidian ${apiVersion}, ${platformName()}`);
 		await this.loadSettings();
 		this.sources = [
 			new InternetArchiveSource(() => this.settings),
@@ -26,7 +31,7 @@ export default class ComicDownloaderPlugin extends Plugin {
 			// PDFs keep opening in Obsidian's PDF viewer; use "Open in comic reader" for those.
 			this.registerExtensions(["cbz"], VIEW_TYPE_COMIC_READER);
 		} catch (error) {
-			console.warn("Comic Downloader: another plugin already opens .cbz files", error);
+			log.warn("Another plugin already opens .cbz files", error);
 		}
 
 		this.addRibbonIcon("download", "Download comics", () => new ComicBrowserModal(this).open());
@@ -34,6 +39,11 @@ export default class ComicDownloaderPlugin extends Plugin {
 			id: "open-comic-browser",
 			name: "Download comics",
 			callback: () => new ComicBrowserModal(this).open(),
+		});
+		this.addCommand({
+			id: "show-log",
+			name: "Show log",
+			callback: () => this.showLog(),
 		});
 		this.addCommand({
 			id: "open-in-comic-reader",
@@ -90,6 +100,10 @@ export default class ComicDownloaderPlugin extends Plugin {
 		}
 		const leaf = this.app.workspace.getLeaf("tab");
 		await leaf.setViewState({ type: VIEW_TYPE_COMIC_READER, state: { file: file.path }, active: true });
+	}
+
+	showLog(): void {
+		new LogModal(this.app).open();
 	}
 
 	refreshReaders(): void {
@@ -156,4 +170,13 @@ export default class ComicDownloaderPlugin extends Plugin {
 
 function downloadKey(comic: ComicSummary): string {
 	return `${comic.sourceId}:${comic.id}`;
+}
+
+function platformName(): string {
+	if (Platform.isAndroidApp) return "Android";
+	if (Platform.isIosApp) return Platform.isTablet ? "iPadOS" : "iOS";
+	if (Platform.isMacOS) return "macOS";
+	if (Platform.isWin) return "Windows";
+	if (Platform.isLinux) return "Linux";
+	return "unknown platform";
 }

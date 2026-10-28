@@ -1,4 +1,5 @@
 import { ButtonComponent, debounce, FileView, Scope, TFile, WorkspaceLeaf } from "obsidian";
+import { log } from "../log";
 import type ComicDownloaderPlugin from "../main";
 import { openPages, PageSource } from "./pages";
 
@@ -115,7 +116,7 @@ export class ComicReaderView extends FileView {
 			await this.showPage(Math.min(Math.max(saved, 0), pages.pageCount - 1));
 		} catch (error) {
 			if (token !== this.renderToken) return;
-			console.error("Comic Downloader: could not open comic", error);
+			log.error(`Could not open ${file.path} in the reader`, error);
 			this.showMessage(`Could not open this comic. ${error instanceof Error ? error.message : ""}`);
 		}
 	}
@@ -176,7 +177,7 @@ export class ComicReaderView extends FileView {
 			this.stageEl.scrollTop = 0;
 		} catch (error) {
 			if (token !== this.renderToken) return;
-			console.error("Comic Downloader: could not show page", error);
+			log.error(`Could not show page ${index + 1} of ${this.file.path}`, error);
 			this.showMessage(`Page ${index + 1} could not be shown.`);
 			return;
 		}

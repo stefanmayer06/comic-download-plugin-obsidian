@@ -39,6 +39,19 @@ export function firstText(value: unknown): string {
 	return typeof value === "string" ? value.trim() : "";
 }
 
+/** A readable reason from anything a promise can reject with. */
+export function errorMessage(error: unknown): string {
+	if (error instanceof Error) return error.message || error.name;
+	if (typeof error === "string") return error;
+	const message = (error as { message?: unknown } | null)?.message;
+	if (typeof message === "string" && message) return message;
+	try {
+		return JSON.stringify(error) ?? String(error);
+	} catch {
+		return String(error);
+	}
+}
+
 export function fileExtension(name: string): string {
 	const dot = name.lastIndexOf(".");
 	return dot === -1 ? "" : name.slice(dot + 1).toLowerCase();

@@ -27,6 +27,22 @@ read them one page at a time.
 `.cbz` files open in the reader directly. For PDFs, right-click the file and
 choose **Open in comic reader**, or run *Open current file in comic reader*.
 
+## When a download fails
+
+The failure notice says why, for example
+`getcomics.org answered with HTTP 403 ("Just a moment...")`, and has a
+**Show log** link. You can also run *Comic Downloader: Show log* from the
+command palette at any time.
+
+The log lists every search, file listing and download step: each URL the
+plugin requested, the HTTP status, content type, size and time it took, the
+files found for a comic, and the full error when something goes wrong. Use
+**Copy** to paste it into a bug report, or **Clear** to start fresh.
+
+The log is also written to `.obsidian/plugins/comic-downloader/debug.log`,
+so it survives a restart or crash and keeps the latest 2000 lines. It
+contains your search words and the URLs you downloaded from.
+
 ## Where comics come from
 
 Use the **Source** picker in the download menu to switch between:
@@ -117,6 +133,8 @@ src/
   main.ts                    plugin entry: ribbon button, commands, file menu
   settings.ts                settings and settings tab
   downloader.ts              saves comic files into the comics folder
+  http.ts                    requests that are written to the log
+  log.ts                     the log behind "Show log"
   sources/
     types.ts                 ComicSource interface
     internetArchive.ts       Internet Archive search and file listing
@@ -124,6 +142,7 @@ src/
   ui/
     ComicBrowserModal.ts     the download menu
     FilePickerModal.ts       issue picker for items with several files
+    LogModal.ts              shows, copies and clears the log
   reader/
     ComicReaderView.ts       paginated reader view
     pages.ts                 CBZ and PDF page loading
