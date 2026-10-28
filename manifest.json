@@ -1,0 +1,9 @@
+{
+	"id": "comic-downloader",
+	"name": "Comic Downloader",
+	"version": "0.1.0",
+	"minAppVersion": "1.5.0",
+	"description": "Search free, openly licensed comics, download them into a Comics folder and read them page by page.",
+	"author": "Stefan Mayer",
+	"isDesktopOnly": false
+}
