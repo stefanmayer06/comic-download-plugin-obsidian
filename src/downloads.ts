@@ -35,6 +35,11 @@ export class DownloadQueue {
 		return this.downloads.find((download) => isSameComic(download.comic, comic))?.status ?? null;
 	}
 
+	/** Downloads running or waiting their turn, in order. */
+	list(): { name: string; status: string; cancel: () => void }[] {
+		return this.downloads.map((download) => ({ name: download.name, status: download.status, cancel: () => this.cancel(download) }));
+	}
+
 	/** Calls `listener` whenever a download starts, progresses or ends. Returns a function that stops it. */
 	onChange(listener: () => void): () => void {
 		this.listeners.add(listener);

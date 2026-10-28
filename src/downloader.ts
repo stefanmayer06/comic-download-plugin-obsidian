@@ -2,7 +2,7 @@ import { App, normalizePath, RequestUrlResponse, TFile } from "obsidian";
 import { bodyPreview, fetchUrl, HttpError, pageTitle, responseHeader } from "./http";
 import { log } from "./log";
 import type { ComicFile } from "./sources/types";
-import { errorMessage, formatBytes, sanitizeFileName } from "./util";
+import { detectComicExtension, errorMessage, formatBytes, sanitizeFileName } from "./util";
 
 /**
  * Comics are fetched in pieces of this size. On mobile each response is
@@ -149,27 +149,6 @@ async function fetchRange(url: string, start: number, end: number, isCancelled?:
 			for (let second = 0; second < wait && !isCancelled?.(); second++) await sleep(1000);
 		}
 	}
-}
-
-export function detectComicExtension(data: ArrayBuffer): ComicFile["extension"] | null {
-	const bytes = new Uint8Array(data, 0, Math.min(data.byteLength, 1024));
-	if (bytes.length >= 6 && bytes[0] === 0x52 && bytes[1] === 0x61 && bytes[2] === 0x72 && bytes[3] === 0x21 && bytes[4] === 0x1a && bytes[5] === 0x07) {
-		return "cbr";
-	}
-	if (
-		bytes.length >= 4 &&
-		bytes[0] === 0x50 &&
-		bytes[1] === 0x4b &&
-		((bytes[2] === 0x03 && bytes[3] === 0x04) || (bytes[2] === 0x05 && bytes[3] === 0x06) || (bytes[2] === 0x07 && bytes[3] === 0x08))
-	) {
-		return "cbz";
-	}
-	for (let i = 0; i <= bytes.length - 5; i++) {
-		if (bytes[i] === 0x25 && bytes[i + 1] === 0x50 && bytes[i + 2] === 0x44 && bytes[i + 3] === 0x46 && bytes[i + 4] === 0x2d) {
-			return "pdf";
-		}
-	}
-	return null;
 }
 
 /** The first bytes as hex and text, e.g. `52 61 72 21 1a 07 01 00 "Rar!...."`. */

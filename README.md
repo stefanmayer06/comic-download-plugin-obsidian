@@ -5,23 +5,32 @@ read them one page at a time.
 
 ## What it does
 
-- **Download button.** A ribbon button (and the command *Download comics*)
-  opens the download menu.
-- **Download menu.** A source picker and search box above a scrolling list of
-  comics. Each card shows the name, author, publisher, licence and description,
-  a **Download** button and the cover. *Load more* fetches the next page.
+- **Comics menu.** A ribbon button opens the menu on the page you used last.
+  The commands *Download comics* and *Show installed comics* open it on
+  **Browse** or **Installed**, the two pages you switch between with the
+  side-by-side selector at the top.
+- **Browse.** A search box, and pickers for the source, publisher, type
+  (comics or graphic novels) and sort order, above a scrolling list of
+  comics. Each card shows the name, author, publisher, licence and
+  description, a **Download** button and the cover. *Load more* fetches the
+  next page. Your picks are remembered for each source.
+- **Installed.** Downloads in progress (with **Cancel**), then every comic in
+  your comics folder with its publisher, format, size, when it was downloaded
+  and how far you've read. Filter by name or publisher, sort by most recently
+  downloaded or by title, and **Read** or **Delete** each one (press
+  **Confirm delete** to move the file to the trash).
 - **Comics folder.** Downloads are saved to `Comics/` (configurable). If an
   item contains several issues, you pick which one to download. Downloaded
   comics show **Read** instead of **Download**.
 - **Background downloads.** Downloads keep going after you close the
-  download menu. A notice shows each one's progress and time left, with a
+  comics menu. A notice shows each one's progress and time left, with a
   **Cancel** link, and another notice tells you when it's finished. Several
   downloads wait their turn and run one at a time. Comics are fetched in
   8 MB pieces, and a piece that fails is tried again up to four times, so
   a slow half-hour download isn't lost to one dropped connection. On
   Android and iOS, keep Obsidian open: if you switch to another app, the
   system may pause the download until you come back.
-- **Comic reader.** Opens `.cbz` and `.pdf` comics one page at a time instead
+- **Comic reader.** Opens `.cbz`, `.cbr` and `.pdf` comics one page at a time instead
   of scrolling, which suits e-ink screens:
   - tap the right or left third of the page, swipe, or use the arrow keys,
     Page Up/Down or Space to turn pages;
@@ -32,7 +41,7 @@ read them one page at a time.
   - *Next page* and *Previous page* are commands, so you can bind them to
     hotkeys or hardware page-turn buttons.
 
-`.cbz` files open in the reader directly. For PDFs, right-click the file and
+`.cbz` and `.cbr` files open in the reader directly. For PDFs, right-click the file and
 choose **Open in comic reader**, or run *Open current file in comic reader*.
 
 ## When a download fails
@@ -53,18 +62,24 @@ contains your search words and the URLs you downloaded from.
 
 ## Where comics come from
 
-Use the **Source** picker in the download menu to switch between:
+Use the **Source** picker on the Browse page to switch between:
 
 - [Internet Archive](https://archive.org): comics from its public search API.
   Only items marked **public domain** or **Creative Commons** are listed. By
   default the search is limited to golden age comics (roughly 1938–1955:
-  Quality, Fawcett, ACG, Avon, Lev Gleason and others), most of which are now
+  Quality, Charlton, ACG, Avon, Lev Gleason and others), most of which are now
   public domain. Uploaders set these licences, so check the licence on each
-  card before downloading.
+  card before downloading. Filter by publisher (golden age uploads name it as
+  the creator) and sort by best match, downloads, title or date added. The
+  Archive's comics are single issues, so there is no type picker.
 - [GetComics](https://getcomics.org): search and cover metadata come from its
   public WordPress API. Direct CBZ, CBR and PDF downloads are supported when a
-  post provides them. GetComics does not supply licence metadata, so check
-  that you have the right to download a comic before doing so.
+  post provides them. Filter by publisher (DC, Marvel, Image and about 25
+  others that GetComics tags) and by type: comics are single issues, graphic
+  novels are posts tagged TPB (trade paperbacks, omnibuses, compendiums).
+  Sort by date, title or best match. News posts and weekly packs (ZIPs of
+  many comics) are left out. GetComics does not supply licence metadata, so
+  check that you have the right to download a comic before doing so.
 
 New sources can be added by implementing `ComicSource` in
 `src/sources/types.ts`.
@@ -85,7 +100,34 @@ New sources can be added by implementing `ComicSource` in
 | --- | --- | --- |
 | CBZ | ✓ (preferred) | ✓ |
 | PDF | ✓ | ✓ (rendered with Obsidian's built-in pdf.js) |
-| CBR | only when no CBZ or PDF exists | not yet |
+| CBR | ✓ (Internet Archive: only when no CBZ or PDF exists) | ✓ (RAR4 and RAR5) |
+
+The reader goes by a file's contents rather than its name, so a `.cbr`
+that is really a ZIP (which is common) opens fine. CBR pages are unpacked
+one at a time as you read. In a *solid* RAR archive, pages can only be
+unpacked in order, so pages further in take longer to show; most comic
+CBRs aren't solid. Password-protected CBRs and archives split into several
+files can't be opened.
+
+## Credits
+
+CBZ files are read with [fflate](https://github.com/101arrowz/fflate) (MIT
+licence, [`licenses/fflate.txt`](licenses/fflate.txt)).
+
+CBR files are read with [node-unrar-js](https://github.com/YuJianrong/node-unrar.js)
+(MIT licence, [`licenses/node-unrar-js.txt`](licenses/node-unrar-js.txt)),
+which bundles UnRAR by Alexander Roshal compiled to
+WebAssembly. UnRAR's full licence is in [`licenses/UnRAR.txt`](licenses/UnRAR.txt);
+it says:
+
+> UnRAR source code may be used in any software to handle RAR archives
+> without limitations free of charge, but cannot be used to develop RAR
+> (WinRAR) compatible archiver and to re-create RAR compression algorithm,
+> which is proprietary. Distribution of modified UnRAR source code in
+> separate form or as a part of other software is permitted, provided that
+> full text of this paragraph, starting from "UnRAR source code" words, is
+> included in license, or in documentation if license is not available,
+> and in source code comments of resulting package.
 
 ## Install
 
@@ -149,12 +191,15 @@ src/
     internetArchive.ts       Internet Archive search and file listing
     getComics.ts             GetComics search and direct file listing
   ui/
-    ComicBrowserModal.ts     the download menu
+    ComicBrowserModal.ts     the comics menu and its Browse page
+    InstalledView.ts         the Installed page
+    card.ts                  comic card layout shared by both pages
     FilePickerModal.ts       issue picker for items with several files
     LogModal.ts              shows, copies and clears the log
     notices.ts               "download finished" and error notices
   reader/
     ComicReaderView.ts       paginated reader view
-    pages.ts                 CBZ and PDF page loading
+    pages.ts                 CBZ, CBR and PDF page loading
     zip.ts                   reads single pages out of a CBZ on demand
+    rar.ts                   reads single pages out of a CBR on demand
 ```
