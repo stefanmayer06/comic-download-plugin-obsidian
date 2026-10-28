@@ -34,9 +34,9 @@ export default class ComicDownloaderPlugin extends Plugin {
 		this.registerView(VIEW_TYPE_COMIC_READER, (leaf) => new ComicReaderView(leaf, this));
 		try {
 			// PDFs keep opening in Obsidian's PDF viewer; use "Open in comic reader" for those.
-			this.registerExtensions(["cbz"], VIEW_TYPE_COMIC_READER);
+			this.registerExtensions(["cbz", "cbr"], VIEW_TYPE_COMIC_READER);
 		} catch (error) {
-			log.warn("Another plugin already opens .cbz files", error);
+			log.warn("Another plugin already opens .cbz or .cbr files", error);
 		}
 
 		this.addRibbonIcon("download", "Comics", () => new ComicBrowserModal(this).open());

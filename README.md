@@ -30,7 +30,7 @@ read them one page at a time.
   a slow half-hour download isn't lost to one dropped connection. On
   Android and iOS, keep Obsidian open: if you switch to another app, the
   system may pause the download until you come back.
-- **Comic reader.** Opens `.cbz` and `.pdf` comics one page at a time instead
+- **Comic reader.** Opens `.cbz`, `.cbr` and `.pdf` comics one page at a time instead
   of scrolling, which suits e-ink screens:
   - tap the right or left third of the page, swipe, or use the arrow keys,
     Page Up/Down or Space to turn pages;
@@ -41,7 +41,7 @@ read them one page at a time.
   - *Next page* and *Previous page* are commands, so you can bind them to
     hotkeys or hardware page-turn buttons.
 
-`.cbz` files open in the reader directly. For PDFs, right-click the file and
+`.cbz` and `.cbr` files open in the reader directly. For PDFs, right-click the file and
 choose **Open in comic reader**, or run *Open current file in comic reader*.
 
 ## When a download fails
@@ -100,7 +100,34 @@ New sources can be added by implementing `ComicSource` in
 | --- | --- | --- |
 | CBZ | ✓ (preferred) | ✓ |
 | PDF | ✓ | ✓ (rendered with Obsidian's built-in pdf.js) |
-| CBR | only when no CBZ or PDF exists | not yet |
+| CBR | ✓ (Internet Archive: only when no CBZ or PDF exists) | ✓ (RAR4 and RAR5) |
+
+The reader goes by a file's contents rather than its name, so a `.cbr`
+that is really a ZIP (which is common) opens fine. CBR pages are unpacked
+one at a time as you read. In a *solid* RAR archive, pages can only be
+unpacked in order, so pages further in take longer to show; most comic
+CBRs aren't solid. Password-protected CBRs and archives split into several
+files can't be opened.
+
+## Credits
+
+CBZ files are read with [fflate](https://github.com/101arrowz/fflate) (MIT
+licence, [`licenses/fflate.txt`](licenses/fflate.txt)).
+
+CBR files are read with [node-unrar-js](https://github.com/YuJianrong/node-unrar.js)
+(MIT licence, [`licenses/node-unrar-js.txt`](licenses/node-unrar-js.txt)),
+which bundles UnRAR by Alexander Roshal compiled to
+WebAssembly. UnRAR's full licence is in [`licenses/UnRAR.txt`](licenses/UnRAR.txt);
+it says:
+
+> UnRAR source code may be used in any software to handle RAR archives
+> without limitations free of charge, but cannot be used to develop RAR
+> (WinRAR) compatible archiver and to re-create RAR compression algorithm,
+> which is proprietary. Distribution of modified UnRAR source code in
+> separate form or as a part of other software is permitted, provided that
+> full text of this paragraph, starting from "UnRAR source code" words, is
+> included in license, or in documentation if license is not available,
+> and in source code comments of resulting package.
 
 ## Install
 
@@ -172,6 +199,7 @@ src/
     notices.ts               "download finished" and error notices
   reader/
     ComicReaderView.ts       paginated reader view
-    pages.ts                 CBZ and PDF page loading
+    pages.ts                 CBZ, CBR and PDF page loading
     zip.ts                   reads single pages out of a CBZ on demand
+    rar.ts                   reads single pages out of a CBR on demand
 ```

@@ -28,6 +28,8 @@ const context = await esbuild.context({
 	logLevel: "info",
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,
+	// unrar's WebAssembly goes inside main.js, which is all Obsidian loads.
+	loader: { ".wasm": "base64" },
 	outfile: "main.js",
 	minify: prod,
 });

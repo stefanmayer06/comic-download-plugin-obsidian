@@ -1,3 +1,5 @@
+import type { ComicFile } from "./sources/types";
+
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 /** Sorts "page2.jpg" before "page10.jpg". */
@@ -55,4 +57,26 @@ export function errorMessage(error: unknown): string {
 export function fileExtension(name: string): string {
 	const dot = name.lastIndexOf(".");
 	return dot === -1 ? "" : name.slice(dot + 1).toLowerCase();
+}
+
+/** A comic file's format from its first bytes, whatever its name says. */
+export function detectComicExtension(data: ArrayBuffer): ComicFile["extension"] | null {
+	const bytes = new Uint8Array(data, 0, Math.min(data.byteLength, 1024));
+	if (bytes.length >= 6 && bytes[0] === 0x52 && bytes[1] === 0x61 && bytes[2] === 0x72 && bytes[3] === 0x21 && bytes[4] === 0x1a && bytes[5] === 0x07) {
+		return "cbr";
+	}
+	if (
+		bytes.length >= 4 &&
+		bytes[0] === 0x50 &&
+		bytes[1] === 0x4b &&
+		((bytes[2] === 0x03 && bytes[3] === 0x04) || (bytes[2] === 0x05 && bytes[3] === 0x06) || (bytes[2] === 0x07 && bytes[3] === 0x08))
+	) {
+		return "cbz";
+	}
+	for (let i = 0; i <= bytes.length - 5; i++) {
+		if (bytes[i] === 0x25 && bytes[i + 1] === 0x50 && bytes[i + 2] === 0x44 && bytes[i + 3] === 0x46 && bytes[i + 4] === 0x2d) {
+			return "pdf";
+		}
+	}
+	return null;
 }

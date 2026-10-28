@@ -1,5 +1,8 @@
 import { loadPdfJs } from "obsidian";
-import { fileExtension, naturalCompare } from "../util";
+import type { FileHeader } from "node-unrar-js";
+import { log } from "../log";
+import { detectComicExtension, fileExtension, naturalCompare } from "../util";
+import { RarArchive } from "./rar";
 import { ZipArchive, ZipEntry } from "./zip";
 
 const IMAGE_TYPES: Record<string, string> = {
@@ -11,6 +14,12 @@ const IMAGE_TYPES: Record<string, string> = {
 	avif: "image/avif",
 	bmp: "image/bmp",
 };
+
+/** Whether an archive entry is a page: an image, not a folder, hidden file or macOS extra. */
+function isPage(name: string): boolean {
+	const base = name.split("/").pop() ?? "";
+	return !name.endsWith("/") && !name.startsWith("__MACOSX/") && !base.startsWith(".") && fileExtension(base) in IMAGE_TYPES;
+}
 
 /** How many pages around the current one keep their decoded image. */
 const KEEP_AROUND = 3;
@@ -59,17 +68,7 @@ export class CbzPages extends PageSource {
 	constructor(data: ArrayBuffer) {
 		super();
 		this.archive = new ZipArchive(data);
-		this.pages = this.archive.entries
-			.filter((entry) => {
-				const base = entry.name.split("/").pop() ?? "";
-				return (
-					!entry.name.endsWith("/") &&
-					!entry.name.startsWith("__MACOSX/") &&
-					!base.startsWith(".") &&
-					fileExtension(base) in IMAGE_TYPES
-				);
-			})
-			.sort((a, b) => naturalCompare(a.name, b.name));
+		this.pages = this.archive.entries.filter((entry) => isPage(entry.name)).sort((a, b) => naturalCompare(a.name, b.name));
 		if (this.pages.length === 0) throw new Error("This CBZ file contains no images");
 	}
 
@@ -80,6 +79,33 @@ export class CbzPages extends PageSource {
 	protected async renderPage(index: number): Promise<Blob> {
 		const entry = this.pages[index];
 		return new Blob([this.archive.read(entry)], { type: IMAGE_TYPES[fileExtension(entry.name)] });
+	}
+}
+
+export class CbrPages extends PageSource {
+	private constructor(
+		private archive: RarArchive,
+		private pages: FileHeader[],
+	) {
+		super();
+	}
+
+	static async open(data: ArrayBuffer): Promise<CbrPages> {
+		const archive = await RarArchive.open(data);
+		const pages = archive.entries.filter((entry) => !entry.flags.directory && isPage(entry.name)).sort((a, b) => naturalCompare(a.name, b.name));
+		if (pages.length === 0) throw new Error("This CBR file contains no images");
+		// Pages of a solid archive can only be unpacked in order, so later pages take longer.
+		if (archive.isSolid) log.info("This CBR is a solid archive: pages further in take longer to open");
+		return new CbrPages(archive, pages);
+	}
+
+	get pageCount(): number {
+		return this.pages.length;
+	}
+
+	protected async renderPage(index: number): Promise<Blob> {
+		const entry = this.pages[index];
+		return new Blob([await this.archive.read(entry)], { type: IMAGE_TYPES[fileExtension(entry.name)] });
 	}
 }
 
@@ -126,7 +152,11 @@ export class PdfPages extends PageSource {
 }
 
 export async function openPages(extension: string, data: ArrayBuffer): Promise<PageSource> {
-	if (extension === "cbz") return new CbzPages(data);
-	if (extension === "pdf") return PdfPages.open(data);
+	// Go by the contents: plenty of ".cbr" files are really ZIPs, and some ".cbz" files RARs.
+	const format = detectComicExtension(data) ?? extension;
+	if (format !== extension) log.info(`This .${extension} file is really a ${format.toUpperCase()}; opening it as one`);
+	if (format === "cbz") return new CbzPages(data);
+	if (format === "cbr") return CbrPages.open(data);
+	if (format === "pdf") return PdfPages.open(data);
 	throw new Error(`.${extension} files can't be opened by the comic reader`);
 }

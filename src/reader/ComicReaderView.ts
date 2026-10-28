@@ -4,7 +4,7 @@ import type ComicDownloaderPlugin from "../main";
 import { openPages, PageSource } from "./pages";
 
 export const VIEW_TYPE_COMIC_READER = "comic-reader";
-export const READER_EXTENSIONS = ["cbz", "pdf"];
+export const READER_EXTENSIONS = ["cbz", "cbr", "pdf"];
 
 /** Horizontal drag, in pixels, that counts as a swipe instead of a tap. */
 const SWIPE_DISTANCE = 50;

@@ -19,6 +19,7 @@
 		"typescript": "5.9.3"
 	},
 	"dependencies": {
-		"fflate": "^0.8.2"
+		"fflate": "^0.8.2",
+		"node-unrar-js": "2.0.2"
 	}
 }

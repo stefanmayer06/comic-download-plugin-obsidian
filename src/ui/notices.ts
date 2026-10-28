@@ -14,10 +14,6 @@ export function showErrorNotice(plugin: ComicDownloaderPlugin, message: string):
 export function showSavedNotice(plugin: ComicDownloaderPlugin, file: TFile): void {
 	const fragment = createFragment((frag) => {
 		frag.appendText(`Download finished: ${file.path}. `);
-		if (file.extension === "cbr") {
-			frag.appendText("CBR files can't be opened by the reader yet.");
-			return;
-		}
 		addLink(frag, "Read now", () => {
 			plugin.browser?.close();
 			void plugin.openInReader(file);
