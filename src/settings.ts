@@ -1,19 +1,31 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type ComicDownloaderPlugin from "./main";
 import type { SearchScope } from "./sources/internetArchive";
+import type { ComicSummary, FilterValues } from "./sources/types";
 
 export type FitMode = "page" | "width";
 export type ReadingDirection = "ltr" | "rtl";
+export type BrowserTab = "browse" | "installed";
+export type InstalledSort = "recent" | "title-az" | "title-za";
+/** What the Installed page shows about a downloaded comic. */
+export type LibraryEntry = Omit<ComicSummary, "description">;
 
 export interface ComicDownloaderSettings {
 	comicsFolder: string;
 	sourceId: string;
+	/** Source id -> publisher, type and sort chosen in the download menu. */
+	filters: Record<string, FilterValues>;
+	/** The download menu's page last open. */
+	browserTab: BrowserTab;
+	installedSort: InstalledSort;
 	searchScope: SearchScope;
 	resultsPerPage: number;
 	fitMode: FitMode;
 	readingDirection: ReadingDirection;
 	/** "<source>:<comic id>" -> vault paths of the files downloaded for it. */
 	downloads: Record<string, string[]>;
+	/** "<source>:<comic id>" -> details of a downloaded comic. */
+	library: Record<string, LibraryEntry>;
 	/** Vault path -> last page read (0-based). */
 	progress: Record<string, number>;
 }
@@ -21,11 +33,15 @@ export interface ComicDownloaderSettings {
 export const DEFAULT_SETTINGS: ComicDownloaderSettings = {
 	comicsFolder: "Comics",
 	sourceId: "internet-archive",
+	filters: {},
+	browserTab: "browse",
+	installedSort: "recent",
 	searchScope: "golden-age",
 	resultsPerPage: 20,
 	fitMode: "page",
 	readingDirection: "ltr",
 	downloads: {},
+	library: {},
 	progress: {},
 };
 

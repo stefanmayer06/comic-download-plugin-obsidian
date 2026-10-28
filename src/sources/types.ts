@@ -29,6 +29,24 @@ export interface SearchPage {
 	hasMore: boolean;
 }
 
+/** A dropdown above the results that narrows or orders them, e.g. publisher or sort order. */
+export interface SearchFilter {
+	id: string;
+	name: string;
+	/** The first option is the default. */
+	options: { value: string; label: string }[];
+}
+
+/** The chosen option value for each filter id. */
+export type FilterValues = Record<string, string>;
+
+/** The chosen value of a filter, or its first option if none (or one no longer offered) is chosen. */
+export function filterValue(filters: SearchFilter[], values: FilterValues, id: string): string {
+	const filter = filters.find((candidate) => candidate.id === id);
+	if (!filter) return "";
+	return filter.options.some((option) => option.value === values[id]) ? values[id] : filter.options[0].value;
+}
+
 /**
  * A place comics can be pulled from. Sources expose the licence metadata
  * available from the site so users can check their downloading rights.
@@ -38,7 +56,9 @@ export interface ComicSource {
 	name: string;
 	/** Short source-specific note shown below the source picker. */
 	description: string;
-	search(query: string, page: number): Promise<SearchPage>;
+	/** Dropdowns shown next to the source picker. */
+	filters: SearchFilter[];
+	search(query: string, page: number, filters: FilterValues): Promise<SearchPage>;
 	/** Lists the readable files of a comic, best format first. */
 	listFiles(comic: ComicSummary): Promise<ComicFile[]>;
 }

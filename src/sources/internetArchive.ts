@@ -1,7 +1,7 @@
 import { fetchJson } from "../http";
 import { log } from "../log";
 import { fileExtension, firstText, htmlToText, naturalCompare } from "../util";
-import type { ComicFile, ComicSource, ComicSummary, SearchPage } from "./types";
+import { ComicFile, ComicSource, ComicSummary, filterValue, FilterValues, SearchFilter, SearchPage } from "./types";
 
 /**
  * - golden-age: golden age comics (1930s-50s), most of which are now public domain
@@ -17,6 +17,40 @@ const OPEN_LICENSE = `(${PUBLIC_DOMAIN} OR licenseurl:*creativecommons*)`;
 // Golden age scans on the Archive are tagged with this subject or uploaded to this collection.
 const GOLDEN_AGE = `(subject:("golden age") OR collection:(webcomicuniverse))`;
 const FORMAT_RANK: Record<ComicFile["extension"], number> = { cbz: 0, pdf: 1, cbr: 2 };
+
+/**
+ * Publishers to filter by, with the words that identify them. Golden age
+ * uploads name the publisher as the creator ("Quality", "Charlton Comics",
+ * "MLJ/Archie Comics"); other uploads use the publisher field.
+ */
+const PUBLISHERS: { label: string; words: string[] }[] = [
+	{ label: "American Comics Group (ACG)", words: ["acg", "american comics group"] },
+	{ label: "Avon", words: ["avon"] },
+	{ label: "Canadian Comics", words: ["canadian comics"] },
+	{ label: "Centaur", words: ["centaur"] },
+	{ label: "Charlton Comics", words: ["charlton"] },
+	{ label: "Columbia Comics", words: ["columbia"] },
+	{ label: "Comic Media", words: ["comic media"] },
+	{ label: "Dell", words: ["dell"] },
+	{ label: "Holyoke", words: ["holyoke"] },
+	{ label: "Lev Gleason", words: ["lev gleason"] },
+	{ label: "Magazine Enterprises", words: ["magazine enterprises"] },
+	{ label: "MLJ / Archie", words: ["mlj", "archie"] },
+	{ label: "Novelty Press", words: ["novelty press"] },
+	{ label: "Parents' Magazine", words: ["parents magazine"] },
+	{ label: "Prize Comics", words: ["prize"] },
+	{ label: "Quality Comics", words: ["quality"] },
+	{ label: "Rural Home", words: ["rural home"] },
+];
+
+const SORTS: Record<string, string | null> = {
+	// Ranked by the search words; without any, the most downloaded come first.
+	relevance: null,
+	downloads: "downloads desc",
+	"title-az": "titleSorter asc",
+	"title-za": "titleSorter desc",
+	added: "addeddate desc",
+};
 
 /** Lucene treats these as operators; escaping keeps the license filter intact. */
 function escapeQuery(text: string): string {
@@ -37,31 +71,54 @@ export class InternetArchiveSource implements ComicSource {
 	id = "internet-archive";
 	name = "Internet Archive";
 	description = "Only comics marked public domain or Creative Commons are listed.";
+	filters: SearchFilter[] = [
+		{
+			id: "publisher",
+			name: "Publisher",
+			options: [{ value: "", label: "All publishers" }, ...PUBLISHERS.map((publisher) => ({ value: publisherValue(publisher), label: publisher.label }))],
+		},
+		{
+			id: "sort",
+			name: "Sort",
+			options: [
+				{ value: "relevance", label: "Best match" },
+				{ value: "downloads", label: "Most downloaded" },
+				{ value: "title-az", label: "Title A–Z" },
+				{ value: "title-za", label: "Title Z–A" },
+				{ value: "added", label: "Recently added" },
+			],
+		},
+	];
 
 	constructor(private getSettings: () => { searchScope: SearchScope; resultsPerPage: number }) {}
 
-	buildQuery(text: string): string {
+	buildQuery(text: string, filters: FilterValues = {}): string {
 		const { searchScope } = this.getSettings();
 		const parts = ["collection:(comics)", "mediatype:texts"];
 		if (searchScope === "public-domain") parts.push(PUBLIC_DOMAIN);
 		else parts.push(OPEN_LICENSE);
 		if (searchScope === "golden-age") parts.push(GOLDEN_AGE);
+		const publisher = PUBLISHERS.find((candidate) => publisherValue(candidate) === filterValue(this.filters, filters, "publisher"));
+		if (publisher) {
+			const words = publisher.words.map((word) => (word.includes(" ") ? `"${word}"` : word)).join(" OR ");
+			parts.push(`(creator:(${words}) OR publisher:(${words}))`);
+		}
 		const terms = text.trim();
 		if (terms) parts.unshift(`(${escapeQuery(terms)})`);
 		return parts.join(" AND ");
 	}
 
-	async search(query: string, page: number): Promise<SearchPage> {
+	async search(query: string, page: number, filters: FilterValues): Promise<SearchPage> {
 		const rows = this.getSettings().resultsPerPage;
 		const params = new URLSearchParams({
-			q: this.buildQuery(query),
+			q: this.buildQuery(query, filters),
 			rows: String(rows),
 			page: String(page),
 			output: "json",
 		});
 		for (const field of FIELDS) params.append("fl[]", field);
-		// Without search words, show the most popular comics first.
-		if (!query.trim()) params.append("sort[]", "downloads desc");
+		const sort = SORTS[filterValue(this.filters, filters, "sort")] ?? (query.trim() ? null : SORTS.downloads);
+		if (sort) params.append("sort[]", sort);
 
 		const data = (await fetchJson(`${SEARCH_URL}?${params.toString()}`)) as { response?: { docs?: unknown; numFound?: number } } | null;
 		const response = data?.response;
@@ -71,12 +128,14 @@ export class InternetArchiveSource implements ComicSource {
 		}
 		const results: ComicSummary[] = response.docs.map((doc: Record<string, unknown>) => {
 			const id = String(doc.identifier);
+			const creator = firstText(doc.creator);
+			const creatorPublisher = PUBLISHERS.find((publisher) => publisherPattern(publisher).test(creator));
 			return {
 				id,
 				sourceId: this.id,
 				name: firstText(doc.title) || id,
-				author: firstText(doc.creator),
-				publisher: firstText(doc.publisher),
+				author: creatorPublisher ? "" : creator,
+				publisher: firstText(doc.publisher) || creatorPublisher?.label || "",
 				description: htmlToText(firstText(doc.description)),
 				license: describeLicense(firstText(doc.licenseurl)),
 				coverUrl: `https://archive.org/services/img/${encodeURIComponent(id)}`,
@@ -117,6 +176,14 @@ export class InternetArchiveSource implements ComicSource {
 		}
 		return [...best.values()].sort((a, b) => naturalCompare(a.label, b.label));
 	}
+}
+
+function publisherValue(publisher: { words: string[] }): string {
+	return publisher.words[0].replace(/\s+/g, "-");
+}
+
+function publisherPattern(publisher: { words: string[] }): RegExp {
+	return new RegExp(`\\b(${publisher.words.join("|")})\\b`, "i");
 }
 
 /** "http://creativecommons.org/licenses/by-nc/3.0/" -> "CC BY-NC 3.0" */

@@ -23,18 +23,49 @@
 	min-width: 0;
 }
 
-.comic-browser-source {
+/* Browse | Installed, side by side */
+.comic-browser-tabs {
 	display: flex;
-	align-items: center;
+	gap: var(--size-2-1);
+	padding: var(--size-2-1);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+}
+
+.comic-browser-tab {
+	flex: 1;
+	box-shadow: none;
+	background: transparent;
+	color: var(--text-muted);
+}
+
+.comic-browser-tab.is-active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.comic-browser-page {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	flex: 1;
+	min-height: 0;
+}
+
+.comic-browser-filters {
+	display: flex;
 	flex-wrap: wrap;
 	gap: var(--size-4-2);
-	color: var(--text-muted);
-	font-size: var(--font-ui-small);
+}
+
+.comic-browser-filters select {
+	flex: 1 1 160px;
+	min-width: 0;
 }
 
 .comic-browser-source-description {
-	flex: 1;
-	min-width: 240px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
 }
 
 .comic-browser-list {
@@ -85,7 +116,7 @@
 	overflow-wrap: anywhere;
 }
 
-.comic-card-name:hover {
+a.comic-card-name:hover {
 	text-decoration: underline;
 }
 
@@ -111,7 +142,8 @@
 
 .comic-card-actions {
 	display: flex;
-	align-items: flex-start;
+	flex-direction: column;
+	gap: var(--size-2-2);
 	flex-shrink: 0;
 }
 
@@ -154,11 +186,51 @@
 	.comic-card-actions {
 		order: 3;
 		flex-basis: 100%;
+		flex-direction: row;
 	}
 
 	.comic-card-actions button {
-		width: 100%;
+		flex: 1;
 	}
+}
+
+/* ---------- Installed ---------- */
+
+.comic-installed-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-3);
+}
+
+.comic-installed-downloading {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-2);
+	margin-bottom: var(--size-4-3);
+}
+
+.comic-installed-download {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-2-3) var(--size-4-3);
+	border: var(--border-width) solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+}
+
+.comic-installed-download-name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.comic-installed-download-status {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	font-variant-numeric: tabular-nums;
 }
 
 .comic-file-suggestion-meta {

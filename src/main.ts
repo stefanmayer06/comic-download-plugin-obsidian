@@ -2,7 +2,7 @@ import { apiVersion, normalizePath, Notice, Platform, Plugin, TFile } from "obsi
 import { DownloadQueue } from "./downloads";
 import { log } from "./log";
 import { ComicReaderView, READER_EXTENSIONS, VIEW_TYPE_COMIC_READER } from "./reader/ComicReaderView";
-import { ComicDownloaderSettings, ComicDownloaderSettingTab, DEFAULT_SETTINGS } from "./settings";
+import { ComicDownloaderSettings, ComicDownloaderSettingTab, DEFAULT_SETTINGS, LibraryEntry } from "./settings";
 import { GetComicsSource } from "./sources/getComics";
 import { InternetArchiveSource } from "./sources/internetArchive";
 import type { ComicSource, ComicSummary } from "./sources/types";
@@ -39,11 +39,16 @@ export default class ComicDownloaderPlugin extends Plugin {
 			log.warn("Another plugin already opens .cbz files", error);
 		}
 
-		this.addRibbonIcon("download", "Download comics", () => new ComicBrowserModal(this).open());
+		this.addRibbonIcon("download", "Comics", () => new ComicBrowserModal(this).open());
 		this.addCommand({
 			id: "open-comic-browser",
 			name: "Download comics",
-			callback: () => new ComicBrowserModal(this).open(),
+			callback: () => new ComicBrowserModal(this, "browse").open(),
+		});
+		this.addCommand({
+			id: "open-installed-comics",
+			name: "Show installed comics",
+			callback: () => new ComicBrowserModal(this, "installed").open(),
 		});
 		this.addCommand({
 			id: "show-log",
@@ -95,6 +100,8 @@ export default class ComicDownloaderPlugin extends Plugin {
 	async loadSettings(): Promise<void> {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 		this.settings.downloads = { ...this.settings.downloads };
+		this.settings.library = { ...this.settings.library };
+		this.settings.filters = { ...this.settings.filters };
 		this.settings.progress = { ...this.settings.progress };
 	}
 
@@ -133,7 +140,15 @@ export default class ComicDownloaderPlugin extends Plugin {
 		const key = downloadKey(comic);
 		const paths = this.settings.downloads[key] ?? [];
 		if (!paths.includes(path)) this.settings.downloads[key] = [...paths, path];
+		const { description, ...entry } = comic;
+		this.settings.library[key] = entry;
 		await this.saveSettings();
+	}
+
+	/** Details of the comic a downloaded file belongs to, if it was downloaded by this plugin. */
+	libraryEntry(path: string): LibraryEntry | null {
+		const key = Object.keys(this.settings.downloads).find((candidate) => this.settings.downloads[candidate].includes(path));
+		return key ? (this.settings.library[key] ?? null) : null;
 	}
 
 	private withActiveReader(checking: boolean, action: (reader: ComicReaderView) => void): boolean {
@@ -162,8 +177,12 @@ export default class ComicDownloaderPlugin extends Plugin {
 			});
 			if (updated.every((path, i) => path === paths[i])) continue;
 			const kept = updated.filter((path): path is string => path !== null);
-			if (kept.length > 0) this.settings.downloads[key] = kept;
-			else delete this.settings.downloads[key];
+			if (kept.length > 0) {
+				this.settings.downloads[key] = kept;
+			} else {
+				delete this.settings.downloads[key];
+				delete this.settings.library[key];
+			}
 			changed = true;
 		}
 		for (const [path, page] of Object.entries(this.settings.progress)) {
