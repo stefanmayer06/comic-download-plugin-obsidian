@@ -237,3 +237,25 @@
 	flex: 1;
 	min-width: 0;
 }
+
+/* ---------- Log ---------- */
+
+.comic-log-modal {
+	width: min(900px, 95vw);
+}
+
+.comic-log {
+	max-height: 60vh;
+	overflow: auto;
+	margin: 0;
+	padding: var(--size-4-3);
+	border: var(--border-width) solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+	font-family: var(--font-monospace);
+	font-size: var(--font-smallest);
+	white-space: pre-wrap;
+	word-break: break-all;
+	user-select: text;
+	-webkit-user-select: text;
+}

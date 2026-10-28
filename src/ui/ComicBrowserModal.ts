@@ -1,7 +1,9 @@
 import { ButtonComponent, DropdownComponent, Modal, Notice, TFile } from "obsidian";
 import { comicPath, downloadComic } from "../downloader";
+import { log } from "../log";
 import type ComicDownloaderPlugin from "../main";
 import type { ComicFile, ComicSource, ComicSummary } from "../sources/types";
+import { errorMessage } from "../util";
 import { FilePickerModal } from "./FilePickerModal";
 
 /**
@@ -92,9 +94,12 @@ export class ComicBrowserModal extends Modal {
 		this.moreButton.buttonEl.hide();
 		this.statusEl.setText(page === 1 ? "Searching…" : "Loading more…");
 		this.statusEl.show();
+		const source = this.source;
+		log.info(`Searching ${source.name} for "${this.query.trim()}", page ${page}`);
 		try {
-			const { results, hasMore } = await this.source.search(this.query, page);
+			const { results, hasMore } = await source.search(this.query, page);
 			if (token !== this.searchToken) return;
+			log.info(`Found ${results.length} comics${hasMore ? ", more available" : ""}`);
 			this.nextPage = page + 1;
 			for (const comic of results) this.renderCard(comic);
 			if (page === 1 && results.length === 0) {
@@ -107,8 +112,8 @@ export class ComicBrowserModal extends Modal {
 			this.moreButton.setButtonText("Load more").buttonEl.toggle(hasMore);
 		} catch (error) {
 			if (token !== this.searchToken) return;
-			console.error("Comic Downloader: search failed", error);
-			this.statusEl.setText("Search failed. Check your connection and try again.");
+			log.error(`Searching ${source.name} failed`, error);
+			this.statusEl.setText(`Search failed: ${errorMessage(error)}. Run "Show log" for details.`);
 			this.nextPage = page;
 			this.moreButton.setButtonText("Try again").buttonEl.show();
 		}
@@ -159,27 +164,37 @@ export class ComicBrowserModal extends Modal {
 		let files = this.filesCache.get(cacheKey);
 		if (!files) {
 			setLabel("Loading…");
+			log.info(`Listing the files of "${comic.name}" (${cacheKey}, ${comic.pageUrl})`);
 			try {
 				files = await this.source.listFiles(comic);
 			} catch (error) {
-				console.error("Comic Downloader: could not list files", error);
-				new Notice(`Could not load "${comic.name}". Try again later.`);
+				log.error(`Could not list the files of "${comic.name}"`, error);
+				this.showErrorNotice(`Could not load "${comic.name}": ${errorMessage(error)}.`);
 				return;
 			}
 			this.filesCache.set(cacheKey, files);
+			log.info(
+				files.length === 0
+					? "No downloadable files found"
+					: `Found ${files.length} files:\n${files.map((f) => `${f.label} (${f.extension}): ${f.url}`).join("\n")}`,
+			);
 		}
 		if (files.length === 0) {
-			new Notice(`"${comic.name}" has no comic file the reader can open.`);
+			this.showErrorNotice(`"${comic.name}" has no comic file this plugin can download.`);
 			return;
 		}
 
 		// One file: name it after the comic. Several: name each after its issue.
 		const nameFor = (file: ComicFile) => (files!.length === 1 ? comic.name : file.label);
 		const file = files.length === 1 ? files[0] : await this.pickFile(files, (f) => this.existingFile(comic, nameFor(f), f) !== null);
-		if (!file) return;
+		if (!file) {
+			log.info("No issue picked");
+			return;
+		}
 
 		const existing = this.existingFile(comic, nameFor(file), file);
 		if (existing) {
+			log.info(`Opening ${existing.path}, which was downloaded before`);
 			await this.plugin.recordDownload(comic, existing.path);
 			this.close();
 			await this.plugin.openInReader(existing);
@@ -195,9 +210,22 @@ export class ComicBrowserModal extends Modal {
 			this.showDownloadedNotice(saved);
 		} catch (error) {
 			notice.hide();
-			console.error("Comic Downloader: download failed", error);
-			new Notice(`Download of "${nameFor(file)}" failed. Try again later.`);
+			log.error(`Download of "${nameFor(file)}" failed`, error);
+			this.showErrorNotice(`Download of "${nameFor(file)}" failed: ${errorMessage(error)}.`);
 		}
+	}
+
+	/** A notice with a link to the log, which has the details. */
+	private showErrorNotice(message: string): void {
+		const fragment = createFragment((frag) => {
+			frag.appendText(`${message} `);
+			const link = frag.createEl("a", { text: "Show log", href: "#" });
+			link.addEventListener("click", (event) => {
+				event.preventDefault();
+				this.plugin.showLog();
+			});
+		});
+		new Notice(fragment, 15000);
 	}
 
 	private existingFile(comic: ComicSummary, name: string, file: ComicFile): TFile | null {

@@ -1,4 +1,5 @@
-import { requestUrl } from "obsidian";
+import { fetchJson, fetchUrl, readJson, responseHeader } from "../http";
+import { log } from "../log";
 import { fileExtension, htmlToText, naturalCompare } from "../util";
 import type { ComicFile, ComicSource, ComicSummary, SearchPage } from "./types";
 
@@ -33,9 +34,13 @@ export class GetComicsSource implements ComicSource {
 		});
 		if (query.trim()) params.set("search", query.trim());
 
-		const response = await requestUrl(`${API_URL}?${params.toString()}`);
-		const posts = response.json as WordPressPost[];
-		if (!Array.isArray(posts)) throw new Error("Unexpected response from GetComics");
+		const url = `${API_URL}?${params.toString()}`;
+		const response = await fetchUrl(url);
+		const posts = readJson(url, response) as WordPressPost[];
+		if (!Array.isArray(posts)) {
+			log.error("GetComics sent something other than a list of posts:", posts);
+			throw new Error("Unexpected response from GetComics");
+		}
 
 		const results = posts.map((post) => ({
 			id: String(post.id),
@@ -57,10 +62,12 @@ export class GetComicsSource implements ComicSource {
 
 	async listFiles(comic: ComicSummary): Promise<ComicFile[]> {
 		const params = new URLSearchParams({ _fields: "content" });
-		const response = await requestUrl(`${API_URL}/${encodeURIComponent(comic.id)}?${params.toString()}`);
-		const post = response.json as WordPressPost;
-		const html = post.content?.rendered;
-		if (!html) return [];
+		const post = (await fetchJson(`${API_URL}/${encodeURIComponent(comic.id)}?${params.toString()}`)) as WordPressPost;
+		const html = post?.content?.rendered;
+		if (!html) {
+			log.warn(`GetComics post ${comic.id} has no content`);
+			return [];
+		}
 
 		const doc = new DOMParser().parseFromString(html, "text/html");
 		const anchors = [...doc.querySelectorAll<HTMLAnchorElement>("a[href]")];
@@ -70,6 +77,17 @@ export class GetComicsSource implements ComicSource {
 		});
 		const bodyText = htmlToText(html);
 		const files: ComicFile[] = [];
+		log.info(`GetComics post ${comic.id} has ${anchors.length} links, ${candidates.length} of them direct downloads`);
+		if (candidates.length === 0) {
+			const labels = anchors
+				.filter((anchor) => /\/dls\//.test(anchor.getAttribute("href") ?? ""))
+				.map((anchor) => (anchor.getAttribute("title") || anchor.textContent || "").replace(/\s+/g, " ").trim());
+			log.warn(
+				labels.length > 0
+					? `Its download links are all hosted elsewhere (${labels.join(", ")}), which isn't supported`
+					: "It has no download links",
+			);
+		}
 
 		for (const anchor of candidates) {
 			const url = directDownloadUrl(anchor.getAttribute("href"));
@@ -82,7 +100,10 @@ export class GetComicsSource implements ComicSource {
 			const relatedExtensions = related.map((link) => extensionFromUrl(link.getAttribute("href") ?? ""));
 			const extension = FORMATS.find((format) => relatedExtensions.includes(format));
 			// A ZIP normally contains a set of issues rather than one readable comic.
-			if (!extension && relatedExtensions.includes("zip")) continue;
+			if (!extension && relatedExtensions.includes("zip")) {
+				log.info(`Skipping ${url}: its mirrors are ZIP files, which hold several comics`);
+				continue;
+			}
 
 			const contextText = item?.textContent ?? bodyText;
 			files.push({
@@ -99,11 +120,6 @@ export class GetComicsSource implements ComicSource {
 		for (const file of files) unique.set(`${file.label}\n${file.url}`, file);
 		return [...unique.values()].sort((a, b) => naturalCompare(a.label, b.label));
 	}
-}
-
-function responseHeader(headers: Record<string, string>, name: string): string | undefined {
-	const key = Object.keys(headers).find((header) => header.toLowerCase() === name);
-	return key ? headers[key] : "";
 }
 
 function publisherFromUrl(pageUrl: string): string {

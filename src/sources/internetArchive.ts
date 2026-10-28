@@ -1,4 +1,5 @@
-import { requestUrl } from "obsidian";
+import { fetchJson } from "../http";
+import { log } from "../log";
 import { fileExtension, firstText, htmlToText, naturalCompare } from "../util";
 import type { ComicFile, ComicSource, ComicSummary, SearchPage } from "./types";
 
@@ -62,9 +63,10 @@ export class InternetArchiveSource implements ComicSource {
 		// Without search words, show the most popular comics first.
 		if (!query.trim()) params.append("sort[]", "downloads desc");
 
-		const data = (await requestUrl(`${SEARCH_URL}?${params.toString()}`)).json;
+		const data = (await fetchJson(`${SEARCH_URL}?${params.toString()}`)) as { response?: { docs?: unknown; numFound?: number } } | null;
 		const response = data?.response;
 		if (!response || !Array.isArray(response.docs)) {
+			log.error("The Internet Archive sent no search results:", data);
 			throw new Error("Unexpected response from the Internet Archive");
 		}
 		const results: ComicSummary[] = response.docs.map((doc: Record<string, unknown>) => {
@@ -85,8 +87,9 @@ export class InternetArchiveSource implements ComicSource {
 	}
 
 	async listFiles(comic: ComicSummary): Promise<ComicFile[]> {
-		const data = (await requestUrl(`https://archive.org/metadata/${encodeURIComponent(comic.id)}`)).json;
+		const data = (await fetchJson(`https://archive.org/metadata/${encodeURIComponent(comic.id)}`)) as { files?: unknown } | null;
 		const files: ArchiveFile[] = Array.isArray(data?.files) ? data.files : [];
+		if (files.length === 0) log.warn(`Internet Archive item ${comic.id} lists no files`, data);
 
 		// An item can hold several issues, each as CBZ/CBR plus derived PDFs.
 		// Keep one file per issue, in the format the reader handles best.
@@ -108,6 +111,9 @@ export class InternetArchiveSource implements ComicSource {
 			if (!current || FORMAT_RANK[extension] < FORMAT_RANK[current.extension]) {
 				best.set(base, candidate);
 			}
+		}
+		if (files.length > 0 && best.size === 0) {
+			log.warn(`None of the ${files.length} files in ${comic.id} is a CBZ, CBR or PDF: ${files.map((file) => file.name).join(", ")}`);
 		}
 		return [...best.values()].sort((a, b) => naturalCompare(a.label, b.label));
 	}
