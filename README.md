@@ -64,6 +64,18 @@ holders' permission.
 
 ## Install
 
+### With BRAT
+
+1. Install and enable the **BRAT** community plugin.
+2. Run *BRAT: Add a beta plugin for testing* and enter
+   `stefanmayer06/comic-download-plugin-obsidian`.
+3. Enable **Comic Downloader** under *Settings → Community plugins*.
+
+BRAT installs the latest GitHub release and picks up new releases when you
+check for updates.
+
+### By hand
+
 ```sh
 npm install
 npm run build
@@ -74,6 +86,20 @@ Copy `main.js`, `manifest.json` and `styles.css` into
 **Comic Downloader** under *Settings → Community plugins*.
 
 For development, `npm run dev` rebuilds `main.js` on every change.
+
+## Releasing
+
+```sh
+npm version patch   # or minor / major
+git push --follow-tags
+```
+
+`npm version` updates the version in `package.json`, `manifest.json` and
+`versions.json`, commits it and creates a matching tag (e.g. `0.1.1`, with
+no `v`). Pushing the tag runs `.github/workflows/release.yml`, which builds
+the plugin and publishes a GitHub release with `main.js`, `manifest.json`
+and `styles.css` attached. The workflow fails if the tag doesn't match the
+version in `manifest.json`.
 
 ## Project layout
 

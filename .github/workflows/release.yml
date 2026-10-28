@@ -1,0 +1,45 @@
+name: Release
+
+# Push a tag that matches the version in manifest.json (e.g. 0.1.0, no "v")
+# to build the plugin and publish a GitHub release BRAT can install from.
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check tag matches manifest version
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          version="$(node -p "require('./manifest.json').version")"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::Tag $tag does not match manifest.json version $version"
+            exit 1
+          fi
+
+      - name: Build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            main.js manifest.json styles.css
