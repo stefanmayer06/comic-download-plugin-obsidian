@@ -101,10 +101,13 @@ the plugin and publishes a GitHub release with `main.js`, `manifest.json`
 and `styles.css` attached. The workflow fails if the tag doesn't match the
 version in `manifest.json`.
 
-You can also release without pushing a tag: on GitHub open
-*Actions → Release → Run workflow*. It tags the selected branch with the
-version in `manifest.json` and publishes the release. It stops if that
-version has already been released.
+You can also release without pushing a tag:
+
+- on GitHub open *Actions → Release → Run workflow*. It tags the selected
+  branch with the version in `manifest.json` and publishes the release. It
+  stops if that version has already been released.
+- or create a release on GitHub's website with the version as its tag. The
+  workflow builds the plugin and attaches the files to that release.
 
 ## Project layout
 

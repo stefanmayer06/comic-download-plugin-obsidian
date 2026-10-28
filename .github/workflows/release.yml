@@ -1,9 +1,11 @@
 name: Release
 
 # Publishes a GitHub release with main.js, manifest.json and styles.css,
-# which is what BRAT installs from. Start it either way:
+# which is what BRAT installs from. Start it any of these ways:
 # - push a tag that matches the version in manifest.json (e.g. 0.1.0, no "v")
-# - or press "Run workflow" on the Actions tab, which tags the selected
+# - create a release with that tag on GitHub's website; the build is
+#   attached to it
+# - press "Run workflow" on the Actions tab, which tags the selected
 #   branch with the version in manifest.json
 on:
   push:
@@ -35,7 +37,8 @@ jobs:
             echo "::error::Tag $GITHUB_REF_NAME does not match manifest.json version $version"
             exit 1
           fi
-          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && gh release view "$version" > /dev/null 2>&1; then
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] &&
+            gh release view "$version" --json assets --jq '.assets[].name' 2> /dev/null | grep -qx main.js; then
             echo "::error::Version $version is already released. Bump it with npm version first."
             exit 1
           fi
@@ -51,8 +54,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          gh release create "$VERSION" \
-            --target "$GITHUB_SHA" \
-            --title "$VERSION" \
-            --generate-notes \
-            main.js manifest.json styles.css
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            # The release was created on GitHub's website: attach the build to it.
+            gh release upload "$VERSION" main.js manifest.json styles.css --clobber
+          else
+            gh release create "$VERSION" \
+              --target "$GITHUB_SHA" \
+              --title "$VERSION" \
+              --generate-notes \
+              main.js manifest.json styles.css
+          fi
