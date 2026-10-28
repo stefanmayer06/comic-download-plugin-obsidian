@@ -1,4 +1,5 @@
 import { apiVersion, normalizePath, Notice, Platform, Plugin, TFile } from "obsidian";
+import { DownloadQueue } from "./downloads";
 import { log } from "./log";
 import { ComicReaderView, READER_EXTENSIONS, VIEW_TYPE_COMIC_READER } from "./reader/ComicReaderView";
 import { ComicDownloaderSettings, ComicDownloaderSettingTab, DEFAULT_SETTINGS } from "./settings";
@@ -11,6 +12,9 @@ import { LogModal } from "./ui/LogModal";
 export default class ComicDownloaderPlugin extends Plugin {
 	settings!: ComicDownloaderSettings;
 	sources!: ComicSource[];
+	downloads!: DownloadQueue;
+	/** The download menu, while it is open. */
+	browser: ComicBrowserModal | null = null;
 
 	get source(): ComicSource {
 		return this.sources.find((source) => source.id === this.settings.sourceId) ?? this.sources[0];
@@ -25,6 +29,7 @@ export default class ComicDownloaderPlugin extends Plugin {
 			new InternetArchiveSource(() => this.settings),
 			new GetComicsSource(() => this.settings),
 		];
+		this.downloads = new DownloadQueue(this);
 
 		this.registerView(VIEW_TYPE_COMIC_READER, (leaf) => new ComicReaderView(leaf, this));
 		try {
@@ -81,6 +86,10 @@ export default class ComicDownloaderPlugin extends Plugin {
 		this.registerEvent(this.app.vault.on("delete", (file) => this.onPathChanged(file.path, null)));
 
 		this.addSettingTab(new ComicDownloaderSettingTab(this.app, this));
+	}
+
+	onunload(): void {
+		this.downloads?.cancelAll();
 	}
 
 	async loadSettings(): Promise<void> {

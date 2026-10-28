@@ -13,6 +13,14 @@ read them one page at a time.
 - **Comics folder.** Downloads are saved to `Comics/` (configurable). If an
   item contains several issues, you pick which one to download. Downloaded
   comics show **Read** instead of **Download**.
+- **Background downloads.** Downloads keep going after you close the
+  download menu. A notice shows each one's progress and time left, with a
+  **Cancel** link, and another notice tells you when it's finished. Several
+  downloads wait their turn and run one at a time. Comics are fetched in
+  8 MB pieces, and a piece that fails is tried again up to four times, so
+  a slow half-hour download isn't lost to one dropped connection. On
+  Android and iOS, keep Obsidian open: if you switch to another app, the
+  system may pause the download until you come back.
 - **Comic reader.** Opens `.cbz` and `.pdf` comics one page at a time instead
   of scrolling, which suits e-ink screens:
   - tap the right or left third of the page, swipe, or use the arrow keys,
@@ -132,7 +140,8 @@ You can also release without pushing a tag:
 src/
   main.ts                    plugin entry: ribbon button, commands, file menu
   settings.ts                settings and settings tab
-  downloader.ts              saves comic files into the comics folder
+  downloader.ts              fetches a comic in pieces and saves it
+  downloads.ts               background download queue and progress notices
   http.ts                    requests that are written to the log
   log.ts                     the log behind "Show log"
   sources/
@@ -143,6 +152,7 @@ src/
     ComicBrowserModal.ts     the download menu
     FilePickerModal.ts       issue picker for items with several files
     LogModal.ts              shows, copies and clears the log
+    notices.ts               "download finished" and error notices
   reader/
     ComicReaderView.ts       paginated reader view
     pages.ts                 CBZ and PDF page loading
