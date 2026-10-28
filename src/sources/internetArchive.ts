@@ -35,6 +35,7 @@ interface ArchiveFile {
 export class InternetArchiveSource implements ComicSource {
 	id = "internet-archive";
 	name = "Internet Archive";
+	description = "Only comics marked public domain or Creative Commons are listed.";
 
 	constructor(private getSettings: () => { searchScope: SearchScope; resultsPerPage: number }) {}
 

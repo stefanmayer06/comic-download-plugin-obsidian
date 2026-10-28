@@ -1,4 +1,4 @@
-import { ButtonComponent, Modal, Notice, TFile } from "obsidian";
+import { ButtonComponent, DropdownComponent, Modal, Notice, TFile } from "obsidian";
 import { comicPath, downloadComic } from "../downloader";
 import type ComicDownloaderPlugin from "../main";
 import type { ComicFile, ComicSource, ComicSummary } from "../sources/types";
@@ -19,6 +19,7 @@ export class ComicBrowserModal extends Modal {
 	private filesCache = new Map<string, ComicFile[]>();
 
 	private inputEl!: HTMLInputElement;
+	private sourceDescriptionEl!: HTMLElement;
 	private listEl!: HTMLElement;
 	private statusEl!: HTMLElement;
 	private moreButton!: ButtonComponent;
@@ -44,9 +45,22 @@ export class ComicBrowserModal extends Modal {
 			this.startSearch(this.inputEl.value);
 		});
 
-		contentEl.createDiv({
-			cls: "comic-browser-source",
-			text: `Source: ${this.source.name}. Only comics marked public domain or Creative Commons are listed.`,
+		const sourceEl = contentEl.createDiv({ cls: "comic-browser-source" });
+		sourceEl.createSpan({ text: "Source:" });
+		const sourcePicker = new DropdownComponent(sourceEl);
+		for (const source of this.plugin.sources) sourcePicker.addOption(source.id, source.name);
+		sourcePicker.selectEl.setAttribute("aria-label", "Comic source");
+		sourcePicker.setValue(this.source.id).onChange(async (sourceId) => {
+			this.plugin.settings.sourceId = sourceId;
+			await this.plugin.saveSettings();
+			this.source = this.plugin.source;
+			this.sourceDescriptionEl.setText(this.source.description);
+			this.filesCache.clear();
+			this.startSearch(this.inputEl.value);
+		});
+		this.sourceDescriptionEl = sourceEl.createSpan({
+			cls: "comic-browser-source-description",
+			text: this.source.description,
 		});
 
 		this.listEl = contentEl.createDiv({ cls: "comic-browser-list" });
@@ -141,7 +155,8 @@ export class ComicBrowserModal extends Modal {
 	}
 
 	private async downloadOrOpen(comic: ComicSummary, setLabel: (text: string) => void): Promise<void> {
-		let files = this.filesCache.get(comic.id);
+		const cacheKey = `${comic.sourceId}:${comic.id}`;
+		let files = this.filesCache.get(cacheKey);
 		if (!files) {
 			setLabel("Loading…");
 			try {
@@ -151,7 +166,7 @@ export class ComicBrowserModal extends Modal {
 				new Notice(`Could not load "${comic.name}". Try again later.`);
 				return;
 			}
-			this.filesCache.set(comic.id, files);
+			this.filesCache.set(cacheKey, files);
 		}
 		if (files.length === 0) {
 			new Notice(`"${comic.name}" has no comic file the reader can open.`);
@@ -160,10 +175,10 @@ export class ComicBrowserModal extends Modal {
 
 		// One file: name it after the comic. Several: name each after its issue.
 		const nameFor = (file: ComicFile) => (files!.length === 1 ? comic.name : file.label);
-		const file = files.length === 1 ? files[0] : await this.pickFile(files, (f) => this.existingFile(nameFor(f), f) !== null);
+		const file = files.length === 1 ? files[0] : await this.pickFile(files, (f) => this.existingFile(comic, nameFor(f), f) !== null);
 		if (!file) return;
 
-		const existing = this.existingFile(nameFor(file), file);
+		const existing = this.existingFile(comic, nameFor(file), file);
 		if (existing) {
 			await this.plugin.recordDownload(comic, existing.path);
 			this.close();
@@ -185,9 +200,22 @@ export class ComicBrowserModal extends Modal {
 		}
 	}
 
-	private existingFile(name: string, file: ComicFile): TFile | null {
-		const found = this.app.vault.getAbstractFileByPath(comicPath(this.plugin.settings.comicsFolder, name, file));
-		return found instanceof TFile ? found : null;
+	private existingFile(comic: ComicSummary, name: string, file: ComicFile): TFile | null {
+		const requestedPath = comicPath(this.plugin.settings.comicsFolder, name, file);
+		const requested = this.app.vault.getAbstractFileByPath(requestedPath);
+		if (requested instanceof TFile) return requested;
+
+		// An opaque GetComics link may have been saved with its detected rather
+		// than hinted extension. Only reuse an alternate recorded for this comic.
+		const downloadedPaths = new Set(this.plugin.downloadedFiles(comic).map((downloaded) => downloaded.path));
+		for (const extension of ["cbz", "pdf", "cbr"] as const) {
+			if (extension === file.extension) continue;
+			const path = comicPath(this.plugin.settings.comicsFolder, name, { ...file, extension });
+			if (!downloadedPaths.has(path)) continue;
+			const found = this.app.vault.getAbstractFileByPath(path);
+			if (found instanceof TFile) return found;
+		}
+		return null;
 	}
 
 	private pickFile(files: ComicFile[], isDownloaded: (file: ComicFile) => boolean): Promise<ComicFile | null> {

@@ -1,17 +1,25 @@
 import { Notice, Plugin, TFile } from "obsidian";
 import { ComicReaderView, READER_EXTENSIONS, VIEW_TYPE_COMIC_READER } from "./reader/ComicReaderView";
 import { ComicDownloaderSettings, ComicDownloaderSettingTab, DEFAULT_SETTINGS } from "./settings";
+import { GetComicsSource } from "./sources/getComics";
 import { InternetArchiveSource } from "./sources/internetArchive";
 import type { ComicSource, ComicSummary } from "./sources/types";
 import { ComicBrowserModal } from "./ui/ComicBrowserModal";
 
 export default class ComicDownloaderPlugin extends Plugin {
 	settings!: ComicDownloaderSettings;
-	source!: ComicSource;
+	sources!: ComicSource[];
+
+	get source(): ComicSource {
+		return this.sources.find((source) => source.id === this.settings.sourceId) ?? this.sources[0];
+	}
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
-		this.source = new InternetArchiveSource(() => this.settings);
+		this.sources = [
+			new InternetArchiveSource(() => this.settings),
+			new GetComicsSource(() => this.settings),
+		];
 
 		this.registerView(VIEW_TYPE_COMIC_READER, (leaf) => new ComicReaderView(leaf, this));
 		try {

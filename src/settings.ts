@@ -7,6 +7,7 @@ export type ReadingDirection = "ltr" | "rtl";
 
 export interface ComicDownloaderSettings {
 	comicsFolder: string;
+	sourceId: string;
 	searchScope: SearchScope;
 	resultsPerPage: number;
 	fitMode: FitMode;
@@ -19,6 +20,7 @@ export interface ComicDownloaderSettings {
 
 export const DEFAULT_SETTINGS: ComicDownloaderSettings = {
 	comicsFolder: "Comics",
+	sourceId: "internet-archive",
 	searchScope: "golden-age",
 	resultsPerPage: 20,
 	fitMode: "page",

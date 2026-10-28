@@ -24,8 +24,17 @@
 }
 
 .comic-browser-source {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: var(--size-4-2);
 	color: var(--text-muted);
 	font-size: var(--font-ui-small);
+}
+
+.comic-browser-source-description {
+	flex: 1;
+	min-width: 240px;
 }
 
 .comic-browser-list {

@@ -30,13 +30,14 @@ export interface SearchPage {
 }
 
 /**
- * A place comics can be pulled from. Only sources that distribute comics
- * with the rights holder's permission (public domain or openly licensed)
- * belong here.
+ * A place comics can be pulled from. Sources expose the licence metadata
+ * available from the site so users can check their downloading rights.
  */
 export interface ComicSource {
 	id: string;
 	name: string;
+	/** Short source-specific note shown below the source picker. */
+	description: string;
 	search(query: string, page: number): Promise<SearchPage>;
 	/** Lists the readable files of a comic, best format first. */
 	listFiles(comic: ComicSummary): Promise<ComicFile[]>;

@@ -7,9 +7,9 @@ read them one page at a time.
 
 - **Download button.** A ribbon button (and the command *Download comics*)
   opens the download menu.
-- **Download menu.** A search box above a scrolling list of comics. Each card
-  shows the name, author, publisher, licence and description, a **Download**
-  button and the cover. *Load more* fetches the next page of results.
+- **Download menu.** A source picker and search box above a scrolling list of
+  comics. Each card shows the name, author, publisher, licence and description,
+  a **Download** button and the cover. *Load more* fetches the next page.
 - **Comics folder.** Downloads are saved to `Comics/` (configurable). If an
   item contains several issues, you pick which one to download. Downloaded
   comics show **Read** instead of **Download**.
@@ -29,20 +29,21 @@ choose **Open in comic reader**, or run *Open current file in comic reader*.
 
 ## Where comics come from
 
-Comics are pulled from the [Internet Archive](https://archive.org)'s comics
-collection, using its public search API. Only items marked **public domain**
-or **Creative Commons** are listed. By default the search is limited to
-golden age comics (roughly 1938–1955: Quality, Fawcett, ACG, Avon, Lev
-Gleason and others), most of which are now public domain.
+Use the **Source** picker in the download menu to switch between:
 
-Licences on the Internet Archive are set by the person who uploaded each
-item, so the wider search options in settings can include items with the
-wrong licence. Each card shows the licence it was uploaded with. Check it
-before downloading.
+- [Internet Archive](https://archive.org): comics from its public search API.
+  Only items marked **public domain** or **Creative Commons** are listed. By
+  default the search is limited to golden age comics (roughly 1938–1955:
+  Quality, Fawcett, ACG, Avon, Lev Gleason and others), most of which are now
+  public domain. Uploaders set these licences, so check the licence on each
+  card before downloading.
+- [GetComics](https://getcomics.org): search and cover metadata come from its
+  public WordPress API. Direct CBZ, CBR and PDF downloads are supported when a
+  post provides them. GetComics does not supply licence metadata, so check
+  that you have the right to download a comic before doing so.
 
 New sources can be added by implementing `ComicSource` in
-`src/sources/types.ts`. Only add sites that distribute comics with the rights
-holders' permission.
+`src/sources/types.ts`.
 
 ## Settings
 
@@ -119,6 +120,7 @@ src/
   sources/
     types.ts                 ComicSource interface
     internetArchive.ts       Internet Archive search and file listing
+    getComics.ts             GetComics search and direct file listing
   ui/
     ComicBrowserModal.ts     the download menu
     FilePickerModal.ts       issue picker for items with several files
