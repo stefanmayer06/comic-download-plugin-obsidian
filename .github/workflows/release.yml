@@ -1,11 +1,15 @@
 name: Release
 
-# Push a tag that matches the version in manifest.json (e.g. 0.1.0, no "v")
-# to build the plugin and publish a GitHub release BRAT can install from.
+# Publishes a GitHub release with main.js, manifest.json and styles.css,
+# which is what BRAT installs from. Start it either way:
+# - push a tag that matches the version in manifest.json (e.g. 0.1.0, no "v")
+# - or press "Run workflow" on the Actions tab, which tags the selected
+#   branch with the version in manifest.json
 on:
   push:
     tags:
       - "*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -21,14 +25,21 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Check tag matches manifest version
+      - name: Work out version
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tag="${GITHUB_REF_NAME}"
           version="$(node -p "require('./manifest.json').version")"
-          if [ "$tag" != "$version" ]; then
-            echo "::error::Tag $tag does not match manifest.json version $version"
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF_NAME" != "$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match manifest.json version $version"
             exit 1
           fi
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && gh release view "$version" > /dev/null 2>&1; then
+            echo "::error::Version $version is already released. Bump it with npm version first."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Build
         run: |
@@ -38,8 +49,10 @@ jobs:
       - name: Publish release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
+          gh release create "$VERSION" \
+            --target "$GITHUB_SHA" \
+            --title "$VERSION" \
             --generate-notes \
             main.js manifest.json styles.css
