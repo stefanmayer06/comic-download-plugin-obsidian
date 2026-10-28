@@ -1,15 +1,17 @@
-import { ButtonComponent, DropdownComponent, Modal, Notice, TFile } from "obsidian";
-import { comicPath, downloadComic } from "../downloader";
+import { ButtonComponent, DropdownComponent, Modal, TFile } from "obsidian";
+import { comicPath } from "../downloader";
 import { log } from "../log";
 import type ComicDownloaderPlugin from "../main";
 import type { ComicFile, ComicSource, ComicSummary } from "../sources/types";
 import { errorMessage } from "../util";
 import { FilePickerModal } from "./FilePickerModal";
+import { showErrorNotice } from "./notices";
 
 /**
  * The download menu: a search box over a scrolling list of comic cards.
  * Each card shows name, author, publisher and description, a download
- * button and the cover.
+ * button and the cover. Downloads run in the plugin's queue, so the menu
+ * can be closed while they continue.
  */
 export class ComicBrowserModal extends Modal {
 	private source: ComicSource;
@@ -19,6 +21,9 @@ export class ComicBrowserModal extends Modal {
 	/** Guards against an older search finishing after a newer one. */
 	private searchToken = 0;
 	private filesCache = new Map<string, ComicFile[]>();
+	/** Updates the button of each card shown, e.g. as a download progresses. */
+	private cardRefreshers: (() => void)[] = [];
+	private stopWatchingDownloads: (() => void) | null = null;
 
 	private inputEl!: HTMLInputElement;
 	private sourceDescriptionEl!: HTMLElement;
@@ -32,6 +37,8 @@ export class ComicBrowserModal extends Modal {
 	}
 
 	onOpen(): void {
+		this.plugin.browser = this;
+		this.stopWatchingDownloads = this.plugin.downloads.onChange(() => this.cardRefreshers.forEach((refresh) => refresh()));
 		this.modalEl.addClass("comic-browser-modal");
 		this.titleEl.setText("Download comics");
 		const { contentEl } = this;
@@ -78,12 +85,16 @@ export class ComicBrowserModal extends Modal {
 	}
 
 	onClose(): void {
+		if (this.plugin.browser === this) this.plugin.browser = null;
+		this.stopWatchingDownloads?.();
+		this.cardRefreshers = [];
 		this.searchToken++;
 		this.contentEl.empty();
 	}
 
 	private startSearch(query: string): void {
 		this.query = query;
+		this.cardRefreshers = [];
 		this.listEl.empty();
 		this.statusEl = this.listEl.createDiv({ cls: "comic-browser-status" });
 		void this.loadPage(1);
@@ -133,15 +144,21 @@ export class ComicBrowserModal extends Modal {
 
 		const actions = card.createDiv({ cls: "comic-card-actions" });
 		const button = new ButtonComponent(actions);
+		let loading = false;
 		const refreshLabel = () => {
-			button.setButtonText(this.plugin.downloadedFiles(comic).length > 0 ? "Read" : "Download");
+			if (loading) return;
+			const status = this.plugin.downloads.statusOf(comic);
+			button.setButtonText(status ?? (this.plugin.downloadedFiles(comic).length > 0 ? "Read" : "Download"));
 		};
+		this.cardRefreshers.push(refreshLabel);
 		refreshLabel();
 		button.onClick(async () => {
+			loading = true;
 			button.setDisabled(true);
 			try {
 				await this.downloadOrOpen(comic, (text) => button.setButtonText(text));
 			} finally {
+				loading = false;
 				button.setDisabled(false);
 				refreshLabel();
 			}
@@ -169,7 +186,7 @@ export class ComicBrowserModal extends Modal {
 				files = await this.source.listFiles(comic);
 			} catch (error) {
 				log.error(`Could not list the files of "${comic.name}"`, error);
-				this.showErrorNotice(`Could not load "${comic.name}": ${errorMessage(error)}.`);
+				showErrorNotice(this.plugin, `Could not load "${comic.name}": ${errorMessage(error)}.`);
 				return;
 			}
 			this.filesCache.set(cacheKey, files);
@@ -180,7 +197,7 @@ export class ComicBrowserModal extends Modal {
 			);
 		}
 		if (files.length === 0) {
-			this.showErrorNotice(`"${comic.name}" has no comic file this plugin can download.`);
+			showErrorNotice(this.plugin, `"${comic.name}" has no comic file this plugin can download.`);
 			return;
 		}
 
@@ -201,31 +218,7 @@ export class ComicBrowserModal extends Modal {
 			return;
 		}
 
-		setLabel("Downloading…");
-		const notice = new Notice(`Downloading "${nameFor(file)}"…`, 0);
-		try {
-			const saved = await downloadComic(this.app, this.plugin.settings.comicsFolder, nameFor(file), file);
-			await this.plugin.recordDownload(comic, saved.path);
-			notice.hide();
-			this.showDownloadedNotice(saved);
-		} catch (error) {
-			notice.hide();
-			log.error(`Download of "${nameFor(file)}" failed`, error);
-			this.showErrorNotice(`Download of "${nameFor(file)}" failed: ${errorMessage(error)}.`);
-		}
-	}
-
-	/** A notice with a link to the log, which has the details. */
-	private showErrorNotice(message: string): void {
-		const fragment = createFragment((frag) => {
-			frag.appendText(`${message} `);
-			const link = frag.createEl("a", { text: "Show log", href: "#" });
-			link.addEventListener("click", (event) => {
-				event.preventDefault();
-				this.plugin.showLog();
-			});
-		});
-		new Notice(fragment, 15000);
+		this.plugin.downloads.add(comic, nameFor(file), file);
 	}
 
 	private existingFile(comic: ComicSummary, name: string, file: ComicFile): TFile | null {
@@ -248,22 +241,5 @@ export class ComicBrowserModal extends Modal {
 
 	private pickFile(files: ComicFile[], isDownloaded: (file: ComicFile) => boolean): Promise<ComicFile | null> {
 		return new Promise((resolve) => new FilePickerModal(this.app, files, isDownloaded, resolve).open());
-	}
-
-	private showDownloadedNotice(file: TFile): void {
-		const fragment = createFragment((frag) => {
-			frag.appendText(`Saved to ${file.path}. `);
-			if (file.extension === "cbr") {
-				frag.appendText("CBR files can't be opened by the reader yet.");
-				return;
-			}
-			const link = frag.createEl("a", { text: "Read now", href: "#" });
-			link.addEventListener("click", (event) => {
-				event.preventDefault();
-				this.close();
-				void this.plugin.openInReader(file);
-			});
-		});
-		new Notice(fragment, 8000);
 	}
 }

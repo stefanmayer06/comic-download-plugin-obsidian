@@ -80,11 +80,10 @@ class PluginLog {
 
 function describe(details: unknown): string {
 	if (details instanceof Error) {
-		const status = (details as { status?: unknown }).status;
-		const text = `${details.name}: ${details.message}${typeof status === "number" ? ` (HTTP ${status})` : ""}`;
+		const text = `${details.name}: ${details.message}`;
 		// Errors this plugin throws explain themselves; a stack trace only
 		// helps with unexpected ones such as a TypeError.
-		if (details.name === "Error" || !details.stack) return text;
+		if (details.name === "Error" || details.name === "HttpError" || !details.stack) return text;
 		const frames = details.stack.split("\n").filter((line) => /^\s*at /.test(line));
 		return [text, ...frames.slice(0, 6).map((frame) => frame.trim())].join("\n");
 	}

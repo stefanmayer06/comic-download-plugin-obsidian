@@ -2,19 +2,31 @@ import { requestUrl, RequestUrlResponse } from "obsidian";
 import { log } from "./log";
 import { errorMessage, formatBytes, htmlToText } from "./util";
 
+/** An error response, e.g. a 404 or a 502. */
+export class HttpError extends Error {
+	constructor(
+		message: string,
+		readonly status: number,
+	) {
+		super(message);
+		this.name = "HttpError";
+	}
+}
+
 /**
  * Fetches a URL with Obsidian's requestUrl (which follows redirects) and
  * writes the request and its outcome to the plugin log. Failures say which
  * host answered what, e.g. `getcomics.org answered with HTTP 403 ("Just a moment...")`.
  */
-export async function fetchUrl(url: string): Promise<RequestUrlResponse> {
+export async function fetchUrl(url: string, headers: Record<string, string> = {}): Promise<RequestUrlResponse> {
 	const host = hostOf(url);
 	const started = Date.now();
-	log.info(`GET ${url}`);
+	const sent = Object.entries(headers).map(([name, value]) => `${name}: ${value}`);
+	log.info(`GET ${url}${sent.length > 0 ? ` (${sent.join(", ")})` : ""}`);
 
 	let response: RequestUrlResponse;
 	try {
-		response = await requestUrl({ url, throw: false });
+		response = await requestUrl({ url, headers, throw: false });
 	} catch (error) {
 		log.error(`No response from ${host} after ${secondsSince(started)}`, error);
 		throw new Error(`Could not connect to ${host} (${errorMessage(error)})`);
@@ -25,7 +37,7 @@ export async function fetchUrl(url: string): Promise<RequestUrlResponse> {
 	if (response.status >= 400) {
 		const title = pageTitle(response);
 		log.error(`Response from ${host}:`, bodyPreview(response));
-		throw new Error(`${host} answered with HTTP ${response.status}${title ? ` ("${title}")` : ""}`);
+		throw new HttpError(`${host} answered with HTTP ${response.status}${title ? ` ("${title}")` : ""}`, response.status);
 	}
 	return response;
 }
