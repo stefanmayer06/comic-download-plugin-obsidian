@@ -1,4 +1,5 @@
 import { apiVersion, normalizePath, Notice, Platform, Plugin, TFile } from "obsidian";
+import { CoverCache } from "./covers";
 import { DownloadQueue } from "./downloads";
 import { log } from "./log";
 import { ComicReaderView, READER_EXTENSIONS, VIEW_TYPE_COMIC_READER } from "./reader/ComicReaderView";
@@ -13,6 +14,7 @@ export default class ComicDownloaderPlugin extends Plugin {
 	settings!: ComicDownloaderSettings;
 	sources!: ComicSource[];
 	downloads!: DownloadQueue;
+	covers!: CoverCache;
 	/** The download menu, while it is open. */
 	browser: ComicBrowserModal | null = null;
 
@@ -30,6 +32,8 @@ export default class ComicDownloaderPlugin extends Plugin {
 			new GetComicsSource(() => this.settings),
 		];
 		this.downloads = new DownloadQueue(this);
+		this.covers = new CoverCache(this.app, normalizePath(`${pluginDir}/covers`));
+		this.app.workspace.onLayoutReady(() => void this.covers.prune());
 
 		this.registerView(VIEW_TYPE_COMIC_READER, (leaf) => new ComicReaderView(leaf, this));
 		try {

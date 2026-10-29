@@ -66,6 +66,7 @@ export class InstalledView {
 	destroy(): void {
 		for (const ref of this.vaultEvents) this.plugin.app.vault.offref(ref);
 		this.stopWatchingDownloads();
+		this.plugin.covers.cancelWaiting();
 	}
 
 	render(): void {
@@ -134,7 +135,9 @@ export class InstalledView {
 
 	private renderCard(file: TFile): void {
 		const entry = this.plugin.libraryEntry(file.path);
-		const { info, actions } = createCard(this.listEl, file.basename, entry?.coverUrl ?? null);
+		// The comic's own first page: it shows offline and needs no saved details. The source's cover is a fallback.
+		const cover = async () => (await this.plugin.covers.get(file)) ?? entry?.coverUrl ?? null;
+		const { info, actions } = createCard(this.listEl, file.basename, cover);
 
 		info.createDiv({ text: file.basename, cls: "comic-card-name" });
 		if (entry?.publisher) info.createDiv({ text: entry.publisher, cls: "comic-card-publisher" });

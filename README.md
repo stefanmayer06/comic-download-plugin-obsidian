@@ -15,10 +15,14 @@ read them one page at a time.
   description, a **Download** button and the cover. *Load more* fetches the
   next page. Your picks are remembered for each source.
 - **Installed.** Downloads in progress (with **Cancel**), then every comic in
-  your comics folder with its publisher, format, size, when it was downloaded
-  and how far you've read. Filter by name or publisher, sort by most recently
-  downloaded or by title, and **Read** or **Delete** each one (press
-  **Confirm delete** to move the file to the trash).
+  your comics folder with its cover, publisher, format, size, when it was
+  downloaded and how far you've read. Filter by name or publisher, sort by
+  most recently downloaded or by title, and **Read** or **Delete** each one
+  (press **Confirm delete** to move the file to the trash). Covers are the
+  comic's first page: the first time a comic is shown, it is opened to make
+  a small picture, which is kept in
+  `.obsidian/plugins/comic-downloader/covers/`. So covers show offline, and
+  for comics you added to the folder yourself.
 - **Comics folder.** Downloads are saved to `Comics/` (configurable). If an
   item contains several issues, you pick which one to download. Downloaded
   comics show **Read** instead of **Download**.
@@ -184,6 +188,7 @@ src/
   settings.ts                settings and settings tab
   downloader.ts              fetches a comic in pieces and saves it
   downloads.ts               background download queue and progress notices
+  covers.ts                  covers of installed comics, made from their first page
   http.ts                    requests that are written to the log
   log.ts                     the log behind "Show log"
   sources/
