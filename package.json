@@ -8,12 +8,7 @@
 		"build": "tsc --noEmit --skipLibCheck && node esbuild.config.mjs production",
 		"version": "node version-bump.mjs && git add manifest.json versions.json"
 	},
-	"keywords": [
-		"obsidian",
-		"comics",
-		"cbz",
-		"reader"
-	],
+	"keywords": ["obsidian", "comics", "cbz", "reader"],
 	"author": "Stefan Mayer",
 	"devDependencies": {
 		"@types/node": "^22.18.0",
