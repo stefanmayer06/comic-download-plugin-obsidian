@@ -33,9 +33,12 @@ export default class ComicDownloaderPlugin extends Plugin {
 			new InternetArchiveSource(() => this.settings),
 			new GetComicsSource(() => this.settings),
 		];
-		this.downloads = new DownloadQueue(this);
+		this.downloads = new DownloadQueue(this, normalizePath(`${pluginDir}/partial`));
 		this.covers = new CoverCache(this.app, normalizePath(`${pluginDir}/covers`));
-		this.app.workspace.onLayoutReady(() => void this.covers.prune());
+		this.app.workspace.onLayoutReady(() => {
+			void this.covers.prune();
+			void this.downloads.prune();
+		});
 
 		this.registerView(VIEW_TYPE_COMIC_READER, (leaf) => new ComicReaderView(leaf, this));
 		try {
@@ -101,7 +104,8 @@ export default class ComicDownloaderPlugin extends Plugin {
 	}
 
 	onunload(): void {
-		this.downloads?.cancelAll();
+		// Downloads carry on from where they are when the plugin starts again.
+		this.downloads?.stopAll();
 		document.body.removeClass(FULL_SCREEN_CLASS);
 	}
 
@@ -112,6 +116,7 @@ export default class ComicDownloaderPlugin extends Plugin {
 		this.settings.filters = { ...this.settings.filters };
 		this.settings.pageLook = { ...DEFAULT_SETTINGS.pageLook, ...this.settings.pageLook };
 		this.settings.progress = { ...this.settings.progress };
+		this.settings.queue = [...this.settings.queue];
 	}
 
 	async saveSettings(): Promise<void> {
