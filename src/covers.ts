@@ -111,14 +111,12 @@ export class CoverCache {
 }
 
 /** Redraws a page as a JPEG just big enough to fill the cover box; the card trims what overflows. */
-async function shrink(url: string): Promise<ArrayBuffer> {
-	const image = new Image();
-	image.src = url;
-	await image.decode();
-	const scale = Math.min(1, Math.max(COVER_WIDTH / image.naturalWidth, COVER_HEIGHT / image.naturalHeight));
+async function shrink(page: Blob): Promise<ArrayBuffer> {
+	const image = await createImageBitmap(page);
+	const scale = Math.min(1, Math.max(COVER_WIDTH / image.width, COVER_HEIGHT / image.height));
 	const canvas = document.createElement("canvas");
-	canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-	canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+	canvas.width = Math.max(1, Math.round(image.width * scale));
+	canvas.height = Math.max(1, Math.round(image.height * scale));
 	const context = canvas.getContext("2d");
 	if (!context) throw new Error("Canvas is not available");
 	// JPEG has no transparency, so see-through parts would turn black.
@@ -126,6 +124,7 @@ async function shrink(url: string): Promise<ArrayBuffer> {
 	context.fillRect(0, 0, canvas.width, canvas.height);
 	context.imageSmoothingQuality = "high";
 	context.drawImage(image, 0, 0, canvas.width, canvas.height);
+	image.close();
 	const blob = await new Promise<Blob>((resolve, reject) =>
 		canvas.toBlob((result) => (result ? resolve(result) : reject(new Error("Could not draw the cover"))), "image/jpeg", 0.85),
 	);
