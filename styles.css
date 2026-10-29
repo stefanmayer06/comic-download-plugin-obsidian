@@ -311,6 +311,12 @@ a.comic-card-name:hover {
 	background: var(--background-secondary);
 }
 
+.comic-reader-adjust-tip {
+	padding: var(--size-4-2) 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
 /* Full screen: Obsidian's bars give their room to the page while the reader's toolbar is hidden. */
 body.comic-reader-full-screen .workspace-tab-header-container,
 body.comic-reader-full-screen .workspace-ribbon,

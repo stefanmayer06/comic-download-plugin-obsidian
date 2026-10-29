@@ -144,6 +144,13 @@ export class ComicReaderView extends FileView {
 			await this.plugin.saveSettings();
 			this.plugin.refreshReaders();
 		};
+		// The e-ink screen's refresh mode matters more than any of these sliders, and only Boox can change it.
+		this.adjustEl.createDiv({
+			cls: "comic-reader-adjust-tip",
+			text:
+				"On a Boox: if pages show a dotted or striped pattern, Obsidian is in a fast refresh mode, which dithers images. " +
+				"Set Obsidian's refresh mode to HD in the Boox Control Center.",
+		});
 		let enhanceToggle: ToggleComponent | null = null;
 		new Setting(this.adjustEl)
 			.setName("Enhance for e-ink")

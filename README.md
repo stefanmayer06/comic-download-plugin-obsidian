@@ -60,9 +60,14 @@ screen doesn't flash while you drag. **Reset** goes back to the defaults
 (saturation 140%, contrast 110%, darken 15, sharpness 40). On an ordinary
 screen the enhanced page looks over-saturated; that's expected.
 
-On a Boox, the system's display settings for Obsidian (its app
-optimisation in the E-Ink Center) also affect how pages look, so if
-colours still look off, compare those with the settings used for NeoReader.
+On a Boox, the screen's refresh mode matters most, and Boox sets it per
+app, so the plugin can't change it. In the fast modes (Balanced, Fast,
+Ultrafast) the screen dithers images into a dotted or striped pattern made
+of a few shades. NeoReader runs in HD mode, which draws all 16 grey
+levels. For pages as smooth as NeoReader's, open Obsidian, swipe down to
+the Control Center and set the refresh mode to **HD**. HD makes typing
+feel slower, so you may want to switch back to a faster mode for writing
+notes.
 
 `.cbz` and `.cbr` files open in the reader directly. For PDFs, right-click the file and
 choose **Open in comic reader**, or run *Open current file in comic reader*.
