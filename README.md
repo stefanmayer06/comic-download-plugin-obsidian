@@ -30,10 +30,19 @@ read them one page at a time.
   comics menu. A notice shows each one's progress and time left, with a
   **Cancel** link, and another notice tells you when it's finished. Several
   downloads wait their turn and run one at a time. Comics are fetched in
-  8 MB pieces, and a piece that fails is tried again up to four times, so
-  a slow half-hour download isn't lost to one dropped connection. On
-  Android and iOS, keep Obsidian open: if you switch to another app, the
-  system may pause the download until you come back.
+  8 MB pieces, which are saved as they arrive, so a slow half-hour download
+  isn't lost along the way:
+  - if the connection drops, the download waits and tries again, straight
+    away when you're back online or switch back to Obsidian. A server error
+    is tried again up to four times before the download fails.
+  - if you close Obsidian, or turn off or update the plugin, the queue and
+    the pieces fetched so far are kept. Downloads carry on from where they
+    stopped when you open Obsidian again. The pieces are kept in
+    `.obsidian/plugins/comic-downloader/partial/` until the comic is saved.
+
+  Downloads only make progress while Obsidian is open. On Android and iOS,
+  the system may also pause them while you're in another app; they carry
+  on when you come back.
 - **Comic reader.** Opens `.cbz`, `.cbr` and `.pdf` comics one page at a time instead
   of scrolling, which suits e-ink screens:
   - tap the right or left third of the page, swipe, or use the arrow keys,
@@ -215,8 +224,8 @@ You can also release without pushing a tag:
 src/
   main.ts                    plugin entry: ribbon button, commands, file menu
   settings.ts                settings and settings tab
-  downloader.ts              fetches a comic in pieces and saves it
-  downloads.ts               background download queue and progress notices
+  downloader.ts              fetches a comic in pieces, kept until it's whole, and saves it
+  downloads.ts               background download queue, kept across restarts, and progress notices
   covers.ts                  covers of installed comics, made from their first page
   http.ts                    requests that are written to the log
   log.ts                     the log behind "Show log"

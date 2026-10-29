@@ -1,7 +1,8 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
+import type { FoundFile } from "./downloader";
 import type ComicDownloaderPlugin from "./main";
 import type { SearchScope } from "./sources/internetArchive";
-import type { ComicSummary, FilterValues } from "./sources/types";
+import type { ComicFile, ComicSummary, FilterValues } from "./sources/types";
 
 export type FitMode = "page" | "width";
 export type ReadingDirection = "ltr" | "rtl";
@@ -9,6 +10,18 @@ export type BrowserTab = "browse" | "installed";
 export type InstalledSort = "recent" | "title-az" | "title-za";
 /** What the Installed page shows about a downloaded comic. */
 export type LibraryEntry = Omit<ComicSummary, "description">;
+
+/** A download waiting its turn or under way, kept so it carries on after Obsidian restarts. */
+export interface QueuedDownload {
+	/** Names the folder its pieces are kept in. */
+	id: string;
+	comic: ComicSummary;
+	/** The file name to save it under, without extension. */
+	name: string;
+	file: ComicFile;
+	/** Set once the first piece is saved. */
+	found?: FoundFile;
+}
 
 /** The reader's e-ink adjustments, as the percentages its sliders show. */
 export interface PageLookSettings {
@@ -45,6 +58,8 @@ export interface ComicDownloaderSettings {
 	library: Record<string, LibraryEntry>;
 	/** Vault path -> last page read (0-based). */
 	progress: Record<string, number>;
+	/** Downloads not finished yet, in the order they run. */
+	queue: QueuedDownload[];
 }
 
 export const DEFAULT_SETTINGS: ComicDownloaderSettings = {
@@ -63,6 +78,7 @@ export const DEFAULT_SETTINGS: ComicDownloaderSettings = {
 	downloads: {},
 	library: {},
 	progress: {},
+	queue: [],
 };
 
 export class ComicDownloaderSettingTab extends PluginSettingTab {
