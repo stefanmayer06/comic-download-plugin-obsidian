@@ -1,6 +1,6 @@
 {
 	"name": "comic-download-plugin-obsidian",
-	"version": "0.1.5",
+	"version": "0.1.6",
 	"description": "Obsidian plugin to download free comics and read them page by page.",
 	"main": "main.js",
 	"scripts": {
@@ -8,7 +8,12 @@
 		"build": "tsc --noEmit --skipLibCheck && node esbuild.config.mjs production",
 		"version": "node version-bump.mjs && git add manifest.json versions.json"
 	},
-	"keywords": ["obsidian", "comics", "cbz", "reader"],
+	"keywords": [
+		"obsidian",
+		"comics",
+		"cbz",
+		"reader"
+	],
 	"author": "Stefan Mayer",
 	"devDependencies": {
 		"@types/node": "^22.18.0",
