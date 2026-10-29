@@ -10,6 +10,18 @@ export type InstalledSort = "recent" | "title-az" | "title-za";
 /** What the Installed page shows about a downloaded comic. */
 export type LibraryEntry = Omit<ComicSummary, "description">;
 
+/** The reader's e-ink adjustments, as the percentages its sliders show. */
+export interface PageLookSettings {
+	saturation: number;
+	contrast: number;
+	/** 0 leaves mid-tones as they are; 100 darkens them as much as allowed. */
+	darken: number;
+	sharpness: number;
+}
+
+/** Stronger colours, darker mid-tones and some sharpening, for colour e-ink screens. */
+export const DEFAULT_PAGE_LOOK: PageLookSettings = { saturation: 140, contrast: 110, darken: 15, sharpness: 40 };
+
 export interface ComicDownloaderSettings {
 	comicsFolder: string;
 	sourceId: string;
@@ -22,6 +34,11 @@ export interface ComicDownloaderSettings {
 	resultsPerPage: number;
 	fitMode: FitMode;
 	readingDirection: ReadingDirection;
+	/** Hide Obsidian's tab bar and title along with the reader's toolbar. */
+	fullScreen: boolean;
+	/** Draw pages with pageLook instead of as the file has them. */
+	enhancePages: boolean;
+	pageLook: PageLookSettings;
 	/** "<source>:<comic id>" -> vault paths of the files downloaded for it. */
 	downloads: Record<string, string[]>;
 	/** "<source>:<comic id>" -> details of a downloaded comic. */
@@ -40,6 +57,9 @@ export const DEFAULT_SETTINGS: ComicDownloaderSettings = {
 	resultsPerPage: 20,
 	fitMode: "page",
 	readingDirection: "ltr",
+	fullScreen: true,
+	enhancePages: false,
+	pageLook: DEFAULT_PAGE_LOOK,
 	downloads: {},
 	library: {},
 	progress: {},
@@ -126,6 +146,24 @@ export class ComicDownloaderSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 						this.plugin.refreshReaders();
 					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Full screen")
+			.setDesc("Tapping the middle of the page hides Obsidian's tab bar and title along with the reader's toolbar, so the page gets the whole screen.")
+			.addToggle((toggle) =>
+				toggle.setValue(settings.fullScreen).onChange(async (value) => {
+					settings.fullScreen = value;
+					await this.plugin.saveSettings();
+					this.plugin.updateFullScreen();
+				}),
+			);
+
+		new Setting(containerEl)
+			.setName("Colours and sharpness")
+			.setDesc(
+				"For colour e-ink screens, which show pages paler and softer than the file. " +
+					"Turn it on with the palette button in the reader's toolbar, and fine-tune it with the sliders button next to it while you look at a page.",
 			);
 	}
 }

@@ -9,6 +9,8 @@ import type { ComicSource, ComicSummary } from "./sources/types";
 import { ComicBrowserModal } from "./ui/ComicBrowserModal";
 import { LogModal } from "./ui/LogModal";
 
+const FULL_SCREEN_CLASS = "comic-reader-full-screen";
+
 export default class ComicDownloaderPlugin extends Plugin {
 	settings!: ComicDownloaderSettings;
 	sources!: ComicSource[];
@@ -87,6 +89,7 @@ export default class ComicDownloaderPlugin extends Plugin {
 				);
 			}),
 		);
+		this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.updateFullScreen()));
 		this.registerEvent(this.app.vault.on("rename", (file, oldPath) => this.onPathChanged(oldPath, file.path)));
 		this.registerEvent(this.app.vault.on("delete", (file) => this.onPathChanged(file.path, null)));
 
@@ -95,6 +98,7 @@ export default class ComicDownloaderPlugin extends Plugin {
 
 	onunload(): void {
 		this.downloads?.cancelAll();
+		document.body.removeClass(FULL_SCREEN_CLASS);
 	}
 
 	async loadSettings(): Promise<void> {
@@ -102,6 +106,7 @@ export default class ComicDownloaderPlugin extends Plugin {
 		this.settings.downloads = { ...this.settings.downloads };
 		this.settings.library = { ...this.settings.library };
 		this.settings.filters = { ...this.settings.filters };
+		this.settings.pageLook = { ...DEFAULT_SETTINGS.pageLook, ...this.settings.pageLook };
 		this.settings.progress = { ...this.settings.progress };
 	}
 
@@ -120,6 +125,12 @@ export default class ComicDownloaderPlugin extends Plugin {
 
 	showLog(): void {
 		new LogModal(this.app).open();
+	}
+
+	/** In full screen, Obsidian's bars hide while the active reader hides its toolbar (see styles.css). */
+	updateFullScreen(): void {
+		const reader = this.app.workspace.getActiveViewOfType(ComicReaderView);
+		document.body.toggleClass(FULL_SCREEN_CLASS, this.settings.fullScreen && !!reader?.toolbarHidden);
 	}
 
 	refreshReaders(): void {
