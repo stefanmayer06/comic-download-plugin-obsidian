@@ -38,12 +38,40 @@ read them one page at a time.
   of scrolling, which suits e-ink screens:
   - tap the right or left third of the page, swipe, or use the arrow keys,
     Page Up/Down or Space to turn pages;
-  - tap the middle to show or hide the toolbar;
+  - tap the middle to show or hide the toolbar; in full screen (on by
+    default) Obsidian's tab bar and title hide with it, so the page gets the
+    whole screen;
   - the toolbar has previous/next buttons, a page counter, a slider to jump
-    to any page and a *whole page / fit width* toggle;
+    to any page, a *whole page / fit width* toggle, and the e-ink buttons
+    below;
+  - pages are drawn at exactly the screen's pixels, scaled with
+    high-quality resampling, and the next and previous pages are prepared
+    while you read;
   - the last page you read is remembered for every comic;
   - *Next page* and *Previous page* are commands, so you can bind them to
     hotkeys or hardware page-turn buttons.
+
+### Colour e-ink screens
+
+Colour e-ink screens (Kaleido, as on Boox Note Air C and Tab C models) show
+pages paler, lighter and softer than the file. E-reader apps make up for
+that, and so can the reader: the **palette** button turns on stronger
+colours, darker mid-tones and sharpening, and turns them off again to
+compare. The **sliders** button next to it opens a panel above the toolbar
+to fine-tune saturation, contrast, mid-tone darkening and sharpness while
+the page stays in view; the page redraws when you let go of a slider, so the
+screen doesn't flash while you drag. **Reset** goes back to the defaults
+(saturation 140%, contrast 110%, darken 15, sharpness 40). On an ordinary
+screen the enhanced page looks over-saturated; that's expected.
+
+On a Boox, the screen's refresh mode matters most, and Boox sets it per
+app, so the plugin can't change it. In the fast modes (Balanced, Fast,
+Ultrafast) the screen dithers images into a dotted or striped pattern made
+of a few shades. NeoReader runs in HD mode, which draws all 16 grey
+levels. For pages as smooth as NeoReader's, open Obsidian, swipe down to
+the Control Center and set the refresh mode to **HD**. HD makes typing
+feel slower, so you may want to switch back to a faster mode for writing
+notes.
 
 `.cbz` and `.cbr` files open in the reader directly. For PDFs, right-click the file and
 choose **Open in comic reader**, or run *Open current file in comic reader*.
@@ -97,6 +125,7 @@ New sources can be added by implementing `ComicSource` in
 | Results per page | 20 | |
 | Page fit | Whole page | Or fit width (scroll within a page). |
 | Reading direction | Left to right | Right to left swaps tap zones and arrow keys. |
+| Full screen | On | Hide Obsidian's tab bar and title along with the reader's toolbar. |
 
 ## Formats
 
@@ -205,6 +234,7 @@ src/
   reader/
     ComicReaderView.ts       paginated reader view
     pages.ts                 CBZ, CBR and PDF page loading
+    display.ts               draws pages at screen resolution, with the e-ink look
     zip.ts                   reads single pages out of a CBZ on demand
     rar.ts                   reads single pages out of a CBR on demand
 ```

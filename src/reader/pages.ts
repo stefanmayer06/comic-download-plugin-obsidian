@@ -21,43 +21,36 @@ function isPage(name: string): boolean {
 	return !name.endsWith("/") && !name.startsWith("__MACOSX/") && !base.startsWith(".") && fileExtension(base) in IMAGE_TYPES;
 }
 
-/** How many pages around the current one keep their decoded image. */
+/** How many pages around the current one stay unpacked. */
 const KEEP_AROUND = 3;
 
 /**
- * The pages of one comic. Pages are decoded lazily into object URLs, and
- * only the pages near the one being read are kept in memory.
+ * The pages of one comic. Pages are unpacked lazily, and only the pages
+ * near the one being read are kept in memory.
  */
 export abstract class PageSource {
 	abstract readonly pageCount: number;
-	private urls = new Map<number, Promise<string>>();
+	private images = new Map<number, Promise<Blob>>();
 
 	protected abstract renderPage(index: number): Promise<Blob>;
 
-	getPage(index: number): Promise<string> {
-		let url = this.urls.get(index);
-		if (!url) {
-			url = this.renderPage(index).then((blob) => URL.createObjectURL(blob));
+	/** The page's image file, e.g. a JPEG. */
+	getPage(index: number): Promise<Blob> {
+		let image = this.images.get(index);
+		if (!image) {
+			image = this.renderPage(index);
 			// A failed page should be retried next time, not cached.
-			url.catch(() => this.urls.delete(index));
-			this.urls.set(index, url);
+			image.catch(() => this.images.delete(index));
+			this.images.set(index, image);
 		}
-		this.evictFarFrom(index);
-		return url;
-	}
-
-	private evictFarFrom(index: number): void {
-		for (const [page, url] of this.urls) {
-			if (Math.abs(page - index) > KEEP_AROUND) {
-				this.urls.delete(page);
-				url.then((value) => URL.revokeObjectURL(value), () => undefined);
-			}
+		for (const page of this.images.keys()) {
+			if (Math.abs(page - index) > KEEP_AROUND) this.images.delete(page);
 		}
+		return image;
 	}
 
 	destroy(): void {
-		for (const url of this.urls.values()) url.then((value) => URL.revokeObjectURL(value), () => undefined);
-		this.urls.clear();
+		this.images.clear();
 	}
 }
 
